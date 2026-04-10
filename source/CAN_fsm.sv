@@ -17,7 +17,7 @@ flex_counter #(parameter SIZE = 2) (
     .rollover_val(2'd3),
     .count_out(),
     .rollover_flag(ifs_count_done)
-endmodule
+);
 
 typedef enum logic [2:0] {
     IDLE = 3'd0,
