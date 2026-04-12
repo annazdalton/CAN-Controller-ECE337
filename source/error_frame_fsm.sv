@@ -7,9 +7,10 @@ module error_frame_fsm (
 );
 
 logic [13:0] error_frame;
-logic shift_en, count_en, count_clear, wait_done;
+logic shift_en, count_en, count_clear, wait_done, par_load_en;
 
-flex_counter #(parameter SIZE = 2) (
+//counter for inter->idle
+flex_counter #(parameter SIZE = 2) count3 (
     .clk(clk),
     .n_rst(n_rst), 
     .count_enable(count_en), 
@@ -19,10 +20,36 @@ flex_counter #(parameter SIZE = 2) (
     .rollover_flag(wait_done)
 );
 
-typedef enum logic [1:0] { 
-    IDLE = 1'd0,
-    ERR_FRAME = 1'd1,
-    INTER = 1'd2
+//counter that counts bits shifted out
+flex_counter #(parameter SIZE = 4) count14 (
+    .clk(clk),
+    .n_rst(n_rst), 
+    .count_enable(shift_en), 
+    .clear(count_clear), 
+    .rollover_val(4'd14),
+    .count_out(),
+    .rollover_flag(error_done)
+);
+
+shift_reg #(
+    parameter SIZE = 14,
+    parameter MSB_FIRST = 0
+) shift_register (
+    .clk(clk), 
+    .n_rst(n_rst), 
+    .shift_enable(shift_en), 
+    .serial_in(), 
+    .load_enable(par_load_en),
+    .parallel_in(error_fram),
+    .serial_out(serial_out),
+    .parallel_out()
+);
+
+typedef enum logic [2:0] { 
+    IDLE = 3'd0,
+    ERR_LOAD = 3'd1,
+    ERR_FRAME = 3'd2,
+    INTER = 3'd3
 } state_t;
 
 state_t state, next_state;
@@ -41,6 +68,8 @@ always_comb begin
         shift_en = 1'b0;
         error_idle = 1'b1;
         count_en = 1'b0;
+        count_clear = 1'b1;
+        par_load_en = 1'b0;
 
         if(error) begin
             next_state = ERR_FRAME;
@@ -48,11 +77,23 @@ always_comb begin
             next_state = IDLE;
         end
     end
+    ERR_LOAD: begin
+        error_frame = 14'b000000_1111_1111;
+        shift_en  = 1'b1;
+        error_idle = 1'b0;
+        count_en = 1'b0;
+        count_clear = 1'b0;
+        par_load_en = 1'b1;
+
+        next_state = ERR_FRAME;
+    end
     ERR_FRAME: begin
         error_frame = 14'b000000_1111_1111;
         shift_en  = 1'b1;
         error_idle = 1'b0;
         count_en = 1'b0;
+        count_clear = 1'b0;
+        par_load_en = 1'b0;
 
         if(error_done) begin
             next_state = INTER;
@@ -65,6 +106,8 @@ always_comb begin
         shift_en  = 1'b0;
         error_idle = 1'b0;
         count_en = 1'b1;
+        count_clear = 1'b0;
+        par_load_en = 1'b0;
 
         if(wait_done) begin
             next_state = IDLE;
