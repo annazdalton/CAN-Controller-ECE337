@@ -9,7 +9,7 @@ module CAN_fsm (
 
 logic count_en, count_clear, ifs_count_done;
 //2 bit counter, rollover val = 3
-flex_counter #(parameter SIZE = 2) (
+flex_counter #(parameter SIZE = 2) counter (
     .clk(clk),
     .n_rst(n_rst), 
     .count_enable(count_en), 
@@ -56,6 +56,7 @@ always_comb begin
             eof_en = 1'b0;
             error = 1'b0;
 
+            count_clear = 1'b1;
             count_en = 1'b0;
 
             if(tx_request & bus_idle & !node_off) begin
@@ -74,6 +75,7 @@ always_comb begin
             eof_en = 1'b0;
             error = 1'b0;
 
+            count_clear = 1'b0;
             count_en = 1'b0;
 
             if(tx_bit & !bus_bit) begin
@@ -93,6 +95,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b0;
+            count_clear = 1'b0;
 
             if(tx_bit & !bus_bit) begin
                 next_state = ERROR;
@@ -113,6 +116,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b0;
+            count_clear = 1'b0;
 
             if(data_done) begin
                 next_state = ERROR;
@@ -131,6 +135,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b0;
+            count_clear = 1'b0;
 
             next_state = ACK_DELIM;
         end
@@ -145,6 +150,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b0;
+            count_clear = 1'b0;
 
             next_state = EOF;
         end
@@ -159,6 +165,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b0;
+            count_clear = 1'b0;
 
             if(eof_done) begin
                 next_state = IFS;
@@ -177,6 +184,7 @@ always_comb begin
             error = 1'b0;
 
             count_en = 1'b1;
+            count_clear = 1'b0;
 
             if (ifs_count_done) begin
                 next_state = IDLE;
@@ -193,6 +201,9 @@ always_comb begin
             ack_delim_en = 1'b0;
             eof_en = 1'b0;
             error = 1'b1;
+
+            count_en = 1'b0;
+            count_clear = 1'b0;
 
             if(error_idle) begin
                 next_state = IDLE;

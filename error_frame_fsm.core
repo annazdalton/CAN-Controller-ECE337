@@ -7,8 +7,9 @@ filesets:
         files:
             - "source/error_frame_fsm.sv"
         file_type: systemVerilogSource
-        # depend:
-        #     - "fusesoc:core:name"
+        depend:
+            - "u337mg005:ece337:flex_counter:1.0.0"
+            - "u337mg005:ece337:shift_reg:1.0.0"
 
     synth:
         depend:
