@@ -23,7 +23,7 @@ module tb_CAN_fsm ();
     .data_done(data_done), 
     .error_idle(error_idle), 
     .tx_bit(tx_bit), 
-    .arb_field_done(~arb_active), //maybe change this to a pulse when done
+    .arb_field_done(arb_field_done), //maybe change this to a pulse when done
     .eof_done(eof_done), 
     .bus_bit(bus_bit), 
 
