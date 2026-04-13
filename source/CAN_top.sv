@@ -7,7 +7,7 @@ module CAN_top #(
     input logic bus_rx, tx_request,
 );
 
-logic bus_idle, arb_active, error, error_idle;
+logic bus_idle, arb_active, error, error_idle,
 
 arbitration arb (
     .clk(clk), 
@@ -55,6 +55,26 @@ error_frame_fsm error_frame(
     
     .serial_out(), 
     .error_idle(error_idle)
+);
+
+CAN_error_counters tec_rec(
+    .clk(), 
+    .n_rst(),
+
+    .tx_error(), 
+    .tx_success(), 
+    .rx_error_plus8(), 
+    .rx_error_plus1(), 
+    .rx_success(),
+
+    .bus_rx(bus_rx),
+    .in_bus_off(),
+
+    .error_active(), 
+    .error_passive(),
+    .bus_off(),
+    .tec_out(),
+    .rec_out()
 );
 
 
