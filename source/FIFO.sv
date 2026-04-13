@@ -5,7 +5,7 @@ module FIFO #(
     parameter DEPTH = 10
 ) (
     input logic clk, n_rst,
-    input WEN, REN, clear, 
+    input logic WEN, REN, clear, 
     input logic [SIZE - 1:0] wdata,
 
     output logic full, empty, underrun, overrun,
