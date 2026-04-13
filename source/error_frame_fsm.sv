@@ -10,7 +10,7 @@ logic [13:0] error_frame;
 logic shift_en, count_en, count_clear, wait_done, par_load_en;
 
 //counter for inter->idle
-flex_counter #(parameter SIZE = 2) count3 (
+flex_counter #(.SIZE(2)) count3 (
     .clk(clk),
     .n_rst(n_rst), 
     .count_enable(count_en), 
@@ -21,7 +21,7 @@ flex_counter #(parameter SIZE = 2) count3 (
 );
 
 //counter that counts bits shifted out
-flex_counter #(parameter SIZE = 4) count14 (
+flex_counter #(.SIZE(4)) count14 (
     .clk(clk),
     .n_rst(n_rst), 
     .count_enable(shift_en), 
@@ -31,9 +31,7 @@ flex_counter #(parameter SIZE = 4) count14 (
     .rollover_flag(error_done)
 );
 
-shift_reg #(
-    parameter SIZE = 14,
-    parameter MSB_FIRST = 0
+shift_reg #(.SIZE(14), .MSB_FIRST(0)
 ) shift_register (
     .clk(clk), 
     .n_rst(n_rst), 
@@ -50,19 +48,20 @@ typedef enum logic [2:0] {
     ERR_LOAD = 3'd1,
     ERR_FRAME = 3'd2,
     INTER = 3'd3
-} state_t;
+} state_t0;
 
-state_t state, next_state;
+state_t0 state, next_state;
 
 always_ff @(posedge clk, negedge n_rst) begin
     if(~n_rst) begin
-        state <= '0;
+        state <= IDLE;
     end else begin
         state <= next_state;
     end
 end
 
 always_comb begin 
+case(state)
     IDLE: begin
         error_frame =  14'b0;
         shift_en = 1'b0;
@@ -115,6 +114,7 @@ always_comb begin
             next_state = ERR_FRAME;
         end
     end
+endcase
 end
 
 endmodule
