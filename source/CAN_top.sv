@@ -7,7 +7,7 @@ module CAN_top #(
     input logic bus_rx, tx_request,
 );
 
-logic bus_idle, arb_active,
+logic bus_idle, arb_active, error, error_idle;
 
 arbitration arb (
     .clk(clk), 
@@ -26,13 +26,13 @@ arbitration arb (
 );
 
 CAN_fsm protocol_fsm(
-    .clk(), 
+    .clk(clk), 
     .n_rst(),
     .tx_request(tx_request), 
     .bus_idle(bus_idle), .
     .node_off(), 
     .data_done(), 
-    .error_idle(), 
+    .error_idle(error_idle), 
     .tx_bit(), 
     .arb_field_done(~arb_active), //maybe change this to a pulse when done
     .eof_done(), 
@@ -45,16 +45,16 @@ CAN_fsm protocol_fsm(
     .ack_en(), 
     .ack_delim_en(), 
     .eof_en(), 
-    .error()
+    .error(error)
 );
 
 error_frame_fsm error_frame(
     .clk(clk), 
     .n_rst(n_rst),
-    .error(),
+    .error(error),
     
     .serial_out(), 
-    .error_idle()
+    .error_idle(error_idle)
 );
 
 
