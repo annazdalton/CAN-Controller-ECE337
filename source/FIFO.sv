@@ -37,12 +37,14 @@ always_ff @(posedge clk, negedge n_rst) begin
         write_loc <= '0;
         read_loc <= '0;
         count <= '0;
+        fifo <= '0;
     end else begin
         overrun <= overrun_next;
         underrun <= underrun_next;
         write_loc <= write_loc_next;
         read_loc <= read_loc_next;
         count <= count_next;
+        fifo <= fifo_next;
     end
 end
 
@@ -51,6 +53,14 @@ assign empty = (count == 0)? 1'b1: 1'b0;
 assign rdata_next = fifo[read_loc];
 
 always_comb begin
+    //defaults
+    write_loc_next = write_loc;
+    read_loc_next = read_loc;
+    overrun_next = overrun;
+    underrun_next = underrun;
+    count_next = count;
+    fifo_next = fifo;
+
     if(clear) begin
         read_loc_next = '0;
         write_loc_next = '0;
@@ -86,14 +96,6 @@ always_comb begin
             count_next = count + WEN - REN;
         end
     end
-
-    //defaults
-    write_loc_next = write_loc;
-    read_loc_next = read_loc;
-    overrun_next = overrun;
-    underrun_next = underrun;
-    count_next = count;
-    fifo_next = fifo;
 
 end
 endmodule
