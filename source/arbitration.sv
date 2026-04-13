@@ -57,7 +57,7 @@ always_ff @(posedge clk, negedge n_rst) begin
     if (~n_rst) begin
         bit_count <= '0;
     end else begin
-        bit_count = bit_count_next;
+        bit_count <= bit_count_next;
     end
 end
 
@@ -106,7 +106,7 @@ always_comb begin
             end
         end
         RECEIVE: begin
-            if(bus_off_req) begin //tec counter is greater than 256
+            if(!bus_off_req) begin //tec counter is greater than 256
                 next_state = BUS_OFF;
             end else if (bus_idle) begin
                 next_state = IDLE;
