@@ -93,14 +93,12 @@ module tb_FIFO ();
         clear = 0;
         wdata = 8'hA5;
         @(posedge clk);
-        @(posedge clk);
         WEN = 0;
+        @(posedge clk);
         @(posedge clk);
         check_equal("count after single write", count, 1);
         check_equal("empty low after single write", empty, 0);
         check_equal("full low after single write", full, 0);
-
-        WEN = 0;
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
@@ -108,13 +106,11 @@ module tb_FIFO ();
         $display("\n--- Single Read Test ---");
         REN = 1;
         @(posedge clk);
-        @(posedge clk);
-        @(posedge clk);
+        REN = 0;
         check_equal("rdata after single read", rdata, 8'hA5);
+        @(posedge clk);
         check_equal("count after single read", count, 0);
         check_equal("empty high after single read", empty, 1);
-
-        REN = 0;
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
@@ -135,19 +131,14 @@ module tb_FIFO ();
         WEN = 0;
         REN = 1;
         @(posedge clk);
-        @(posedge clk);
-        @(posedge clk);
         check_equal("first read data", rdata, 8'h11);
+        @(posedge clk)
         check_equal("count after first read", count, 2);
 
-        @(posedge clk);
-        @(posedge clk);
         @(posedge clk);
         check_equal("second read data", rdata, 8'h22);
         check_equal("count after second read", count, 1);
 
-        @(posedge clk);
-        @(posedge clk);
         @(posedge clk);
         check_equal("third read data", rdata, 8'h33);
         check_equal("count after third read", count, 0);
@@ -164,13 +155,12 @@ module tb_FIFO ();
             wdata = i[7:0];
             @(posedge clk);
         end
+        WEN = 0;
         @(posedge clk);
         @(posedge clk);
         check_equal("count at full depth", count, DEPTH);
         check_equal("full asserted", full, 1);
         check_equal("empty deasserted at full", empty, 0);
-
-        WEN = 0;
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
@@ -184,8 +174,6 @@ module tb_FIFO ();
         @(posedge clk);
         check_equal("overrun asserted on write when full", overrun, 1);
         check_equal("count unchanged on overrun", count, DEPTH);
-
-        WEN = 0;
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
@@ -240,6 +228,7 @@ module tb_FIFO ();
         wdata = 8'h66;
         @(posedge clk);
         WEN = 0;
+        REN = 0;
         @(posedge clk);
         @(posedge clk);
         check_equal("count after simultaneous read/write", count, 1);
