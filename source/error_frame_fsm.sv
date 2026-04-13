@@ -79,7 +79,7 @@ always_comb begin
     end
     ERR_LOAD: begin
         error_frame = 14'b000000_1111_1111;
-        shift_en  = 1'b1;
+        shift_en  = 1'b0;
         error_idle = 1'b0;
         count_en = 1'b0;
         count_clear = 1'b0;
