@@ -143,6 +143,39 @@ module tb_CAN_fsm ();
 
         check_output(1'b0, eof_en, "check eof_en is low, idle state");
 
+        //normal state transitions done
+
+        @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
+        //cause error:
+
+        //sof state
+        check_output(1'b1, sof_en, "check sof_en is high, sof state");
+        @(posedge clk);
+
+        check_output(1'b1, arb_en, "check arb_en is high, arb state");
+        @(posedge clk);
+
+        tx_bit = 1;
+        bus_bit = 0;
+        error_idle = '0;
+        @(negedge clk);
+
+        check_output(1'b1, error, "check error is high, error state");
+        @(posedge clk);
+
+        @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
+
+        error_idle = 1;
+        @(negedge clk);
+
+        check_output(1'b0, error, "check error is low, idle state");
+        @(posedge clk);
+
+        #300ns;
 
         $finish;
     end
