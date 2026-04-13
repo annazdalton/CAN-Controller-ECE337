@@ -2,14 +2,14 @@
 
 module CAN_fsm (
     input logic clk, n_rst,
-    input logic tx_request, bus_idle, node_off, data_done, error_idle,
+    input logic tx_request, bus_idle, node_off, data_done, error_idle, tx_bit, arb_field_done, eof_done, bus_bit, 
 
     output logic sof_en, arb_en, crc_rst, data_en, ack_en, ack_delim_en, eof_en, error
 );
 
 logic count_en, count_clear, ifs_count_done;
 //2 bit counter, rollover val = 3
-flex_counter #(parameter SIZE = 2) counter (
+flex_counter_CDL #(.SIZE(2)) counter (
     .clk(clk),
     .n_rst(n_rst), 
     .count_enable(count_en), 
@@ -19,16 +19,16 @@ flex_counter #(parameter SIZE = 2) counter (
     .rollover_flag(ifs_count_done)
 );
 
-typedef enum logic [2:0] {
-    IDLE = 3'd0,
-    SOF = 3'd1,
-    ARB = 3'd2,
-    DATA = 3'd3,
-    ACK = 3'd4,
-    ACK_DELIM = 3'd5,
-    EOF = 3'd6,
-    IFS = 3'd7
-    ERROR = 3'd8
+typedef enum logic [3:0] {
+    IDLE = 4'd0,
+    SOF = 4'd1,
+    ARB = 4'd2,
+    DATA = 4'd3,
+    ACK = 4'd4,
+    ACK_DELIM = 4'd5,
+    EOF = 4'd6,
+    IFS = 4'd7,
+    ERROR = 4'd8
 } state_t;
 
 state_t state, next_state;
@@ -43,7 +43,7 @@ end
 
 always_comb begin
     //default
-    state <= next_state; 
+    next_state = state; 
 
     case(state) 
         IDLE: begin
@@ -60,9 +60,9 @@ always_comb begin
             count_en = 1'b0;
 
             if(tx_request & bus_idle & !node_off) begin
-                state_next = SOF;
+                next_state = SOF;
             end else begin
-                state_next = IDLE;
+                next_state = IDLE;
             end
         end
         SOF: begin
@@ -211,5 +211,21 @@ always_comb begin
                 next_state = ERROR;
             end
         end
+        default: begin
+            sof_en = 1'b0;
+            arb_en = 1'b0;
+            crc_rst = 1'b0;
+            data_en = 1'b0;
+            ack_en = 1'b0;
+            ack_delim_en = 1'b0;
+            eof_en = 1'b0;
+            error = 1'b0;
+
+            count_en = 1'b0;
+            count_clear = 1'b0;
+
+            next_state = IDLE;
+        end
     endcase
 end
+endmodule 
