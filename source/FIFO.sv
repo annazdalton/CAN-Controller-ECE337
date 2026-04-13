@@ -28,7 +28,7 @@ end
 logic underrun_next, overrun_next;
 logic [ADDR_SIZE - 1:0] write_loc, write_loc_next, read_loc, read_loc_next;
 logic [$clog2(DEPTH+1) - 1 :0] count_next;
-logic [SIZE - 1:0][DEPTH - 1:0] fifo, fifo_next
+logic [SIZE - 1:0][DEPTH - 1:0] fifo, fifo_next;
 
 always_ff @(posedge clk, negedge n_rst) begin
     if(~n_rst) begin
@@ -48,7 +48,7 @@ end
 
 assign full = (count == DEPTH)? 1'b1: 1'b0;
 assign empty = (count == 0)? 1'b1: 1'b0;
-assign rdata = fifo[read_loc];
+assign rdata_next = fifo[read_loc];
 
 always_comb begin
     if(clear) begin
@@ -83,7 +83,7 @@ always_comb begin
         end else if(count == 0 && REN) begin //cant read from empty fifo
             count_next = count; 
         end else begin
-            count_next = count + WEN - REN:
+            count_next = count + WEN - REN;
         end
     end
 
@@ -94,7 +94,7 @@ always_comb begin
     underrun_next = underrun;
     count_next = count;
     fifo_next = fifo;
-end
 
+end
 endmodule
 
