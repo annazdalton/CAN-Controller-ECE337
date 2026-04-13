@@ -32,13 +32,63 @@ module tb_bit_destuff ();
     end
     endtask
 
-    bit_destuff #() DUT (.*);
+    logic destuff_enable;
+    logic in_valid;
+    logic in_bit;
+    logic in_ready;
+
+    logic out_valid;
+    logic out_bit;
+    logic out_ready;
+
+    bit_destuff DUT (
+        .clk(clk),
+        .n_rst(n_rst),
+        .destuff_enable(destuff_enable),
+        .in_valid(in_valid),
+        .in_bit(in_bit),
+        .in_ready(in_ready),
+        .out_valid(out_valid),
+        .out_bit(out_bit),
+        .out_ready(out_ready)
+    );
+
+
+    task send_bit(input logic bit_val);
+    begin
+        @(posedge clk);
+        in_valid = 1;
+        in_bit   = bit_val;
+
+        while (!in_ready) @(posedge clk);
+
+        @(posedge clk);
+        in_valid = 0;
+    end
+    endtask
+
+
+    task send_sequence(input logic [63:0] data, input int length);
+    begin
+        for (int i = length-1; i >= 0; i--) begin
+            send_bit(data[i]);
+        end
+    end
+    endtask
 
     initial begin
         n_rst = 1;
 
         reset_dut;
 
+        // no stuffing
+        send_sequence(8'b10101010, 8);
+
+        // one stuffing
+        send_sequence(7'b1111101, 7);
+
+        // multiple stuffing
+        send_sequence(16'b1111101111101111, 16);
         $finish;
     end
 endmodule
