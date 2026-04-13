@@ -29,12 +29,12 @@ logic [5:0] bit_count, bit_count_next;
 logic arb_lost_internal, sof_detected;
 
 assign bus_idle = (idle_count >= 5'd11)? 1'b1: 1'b0;
-assign sof_detected = (bus_idle && bus_rx == 1'b0)? 1'b1: 1'0; // SOF is the first 0 after idle
+assign sof_detected = (bus_idle && bus_rx == 1'b0)? 1'b1: 1'b0; // SOF is the first 0 after idle
 assign arb_lost_internal = (state == ARB_PHASE) && (tx_bit  == 1'b1) && (bus_rx  == 1'b0); 
 assign arb_active = (state == ARB_PHASE)? 1'b1: 1'b0;
 
 //counts 11 ressesive bits
-always_ff @(posedge clk, negedge rst_n) begin
+always_ff @(posedge clk, negedge n_rst) begin
     if (~n_rst) begin
         idle_count <= '0;
     end else begin
@@ -53,7 +53,7 @@ always_comb begin
 end
 
 //counts bits in arb field
-always_ff @(posedge clk, negedge rst_n) begin
+always_ff @(posedge clk, negedge n_rst) begin
     if (~n_rst) begin
         bit_count <= '0;
     end else begin
@@ -92,7 +92,7 @@ always_comb begin
         ARB_PHASE: begin
             if (arb_lost_internal) begin
                 next_state = RECEIVE;
-            end else if (bit_cnt == (ARB_BITS - 1)) begin
+            end else if (bit_count == (6'd11)) begin
                 next_state = TRANSMIT;
             end else begin
                 next_state = ARB_PHASE;
@@ -115,7 +115,7 @@ always_comb begin
             end
         end
         BUS_OFF: begin
-            if(!bus_off) begin
+            if(bus_off_req) begin
                 next_state = IDLE;
             end else begin
                 next_state = BUS_OFF;
@@ -128,7 +128,7 @@ always_comb begin
 end
 
 //output logic 
-always_ff @(posedge clk, negedge rst_n) begin
+always_ff @(posedge clk, negedge n_rst) begin
     if (~n_rst) begin
         is_transmitter <= '0;
         is_receiver <= '0;
