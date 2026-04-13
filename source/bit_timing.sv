@@ -1,4 +1,4 @@
-module can_timing_unit (
+module bit_timing (
     input logic clk,
     input logic n_rst,
 
@@ -25,7 +25,7 @@ module can_timing_unit (
     output logic early_edge,
     output logic late_edge,
     output logic timing_error,
-    output logic sampled_bit,
+    output logic sampled_bit
 );
 
     // RX synchronizer and edge detector
@@ -34,6 +34,8 @@ module can_timing_unit (
     logic rx_falling_edge;
 
     logic [9:0] active_brp;
+    logic [9:0] brp_count;
+    logic [5:0] tq_count;
 
     // Double bitrate in FD mode by halving BRP
     always_comb begin
