@@ -3,7 +3,7 @@
 module CRC_check #(
     // parameters
 ) (
-    input logic clk, n_rst
+    input logic clk, n_rst,
 
     input logic start,
     input logic [63:0] data,
@@ -11,7 +11,7 @@ module CRC_check #(
     input logic [14:0] crc_in,
 
     output logic done,
-    output logic error;
+    output logic error
 );
 
     localparam logic [14:0] POLY = 15'b110001011001100;
@@ -47,6 +47,7 @@ module CRC_check #(
             if (bit_count < total_bits) begin
 
                 logic current_bit;
+                logic feedback;
 
                 if (bit_count < data_len * 8) begin
                     // DATA region
@@ -57,7 +58,6 @@ module CRC_check #(
                     current_bit = crc_in[14 - (bit_count - data_len * 8)];
                 end
 
-                logic feedback;
                 feedback = current_bit ^ crc_reg[14];
 
                 next_crc = {crc_reg[13:0], 1'b0};
@@ -75,7 +75,7 @@ module CRC_check #(
     end
 
 
-    always_ff @(posedge clk or negedge n_rst) begin
+    always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
             crc_reg   <= 0;
             bit_count <= 0;

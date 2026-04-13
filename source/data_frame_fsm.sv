@@ -3,14 +3,14 @@
 module data_frame_fsm #(
     // parameters
 ) (
-    input logic clk, n_rst
+    input logic clk, n_rst,
 
     input logic new_message,
     input logic [3:0] data_len,
     input logic [63:0] data_field,
     
     output logic [110: 0] data_frame,
-    output logic data_ready,
+    output logic data_ready
 );
 
     localparam logic [10:0] IDENTIFIER = 11'h123;
@@ -71,6 +71,8 @@ module data_frame_fsm #(
 
             ASSEMBLE: begin
                 int bit_ptr;
+                int data_bits;
+
                 bit_ptr = 110;
 
                 // SOF
@@ -91,10 +93,13 @@ module data_frame_fsm #(
                 bit_ptr -= 4;
 
                 // DATA
-                int data_bits;
                 data_bits = data_len * 8;
 
-                next_frame[bit_ptr -: data_bits] = data_field[63 -: data_bits];
+                //next_frame[bit_ptr -: data_bits] = data_field[63 -: data_bits];
+                for (int i = 0; i < data_bits; i++) begin
+                    next_frame[bit_ptr - i] = data_field[63 - i];
+                end
+
                 bit_ptr -= data_bits;
 
                 // CRC
@@ -133,7 +138,7 @@ module data_frame_fsm #(
     end
 
 
-    always_ff @(posedge clk or negedge n_rst) begin
+    always_ff @(posedge clk,  negedge n_rst) begin
         if (!n_rst) begin
             state <= IDLE;
             frame_reg <= 0;

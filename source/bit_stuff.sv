@@ -3,7 +3,7 @@
 module bit_stuff #(
     // parameters
 ) (
-    input logic clk, n_rst
+    input logic clk, n_rst,
     input logic stuffing_enable,
     // host and module
     input logic in_valid,
@@ -58,7 +58,6 @@ module bit_stuff #(
         next_stuffing = stuffing;
 
         if (stuffing_enable) begin
-            # stuffing in this cycle
             if (stuffing) begin
                 if (out_ready) begin
                     next_stuffing = 0;
@@ -66,8 +65,6 @@ module bit_stuff #(
                     next_last_bit = ~last_bit;
                 end
             end
-
-            # normal flow
 
             else if (in_valid && in_ready) begin
                 if (count == 0) begin
@@ -93,7 +90,7 @@ module bit_stuff #(
             next_stuffing = 0;
         end
     end 
-    always_ff @(posedge clk or negedge n_rst) begin
+    always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
             last_bit <= 0;
             count <= 0;

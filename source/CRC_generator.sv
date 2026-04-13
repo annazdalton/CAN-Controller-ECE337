@@ -3,7 +3,7 @@
 module CRC_generator #(
     // parameters
 ) (
-    input logic clk, n_rst
+    input logic clk, n_rst,
 
     input logic start,
     input logic [63:0] data,
@@ -14,8 +14,12 @@ module CRC_generator #(
 );
 
     // generator polynomial
-    localparam logic [14:0] POLY = 15'b110001011001100';
+    localparam logic [14:0] POLY = 15'b110001011001100;
 
+    logic [14:0] crc_reg;
+    logic [2:0] byte_idx;
+    logic [2:0] bit_idx;
+    logic busy;
     assign crc_out = crc_reg;
     assign done = (busy && byte_idx == data_len && bit_idx == 0);
     // question above first
@@ -33,19 +37,21 @@ module CRC_generator #(
 
         if (!busy) begin
             if (start) begin
-            next_crc = 15'd0;
-            next_byte_idx = 0;
-            next_bit_idx = 0;
-            next_busy = 1;
+                next_crc = 15'd0;
+                next_byte_idx = 0;
+                next_bit_idx = 0;
+                next_busy = 1;
+            end
         end
         else begin
             if (byte_idx < data_len) begin
                 // extract current bit (msb)
                 logic current_bit;
+                logic feedback;
+
                 current_bit = data[63 - (byte_idx * + bit_idx)];
 
                 //crc step
-                logic feedback;
                 feedback = current_bit ^ crc_reg[14];
 
                 next_crc = {crc_reg[13:0], 1'b0};
@@ -64,8 +70,7 @@ module CRC_generator #(
             end
         end
     end
-
-    always_ff @(posedge clk or negedge n_rst) begin
+    always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
             crc_reg  <= 0;
             byte_idx <= 0;
