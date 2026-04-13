@@ -1,7 +1,7 @@
 `timescale 1ns / 10ps
 /* verilator coverage_off */
 
-module tb_timer ();
+module tb_CAN_error_counters ();
 
     localparam CLK_PERIOD = 10ns;
 
@@ -32,7 +32,7 @@ module tb_timer ();
     end
     endtask
 
-    timer #() DUT (.*);
+    CAN_error_counters #() DUT (.*);
 
     initial begin
         n_rst = 1;

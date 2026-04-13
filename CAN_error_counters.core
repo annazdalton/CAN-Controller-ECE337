@@ -1,11 +1,11 @@
 CAPI=2:
-name: "u337mg005:ece337:flex_counter:1.0.0"
+name: "u337mg005:ece337:CAN_error_counters:1.0.0"
 description: ""
 
 filesets:
     rtl:
         files:
-            - "source/flex_counter.sv"
+            - "source/CAN_error_counters.sv"
         file_type: systemVerilogSource
         # depend:
         #     - "fusesoc:core:name"
@@ -13,13 +13,13 @@ filesets:
     synth:
         depend:
             - "ece337:tech:AMI_05_LIB"
-            - "u337mg005:ece337:flex_counter_syn"
+            - "u337mg005:ece337:CAN_error_counters_syn"
 
     tb:
         files:
-            - "testbench/tb_flex_counter.sv"
-            - "waves/flex_counter.do": { file_type: user }
-            - "waves/flex_counter.gtkw": { file_type: user }
+            - "testbench/tb_CAN_error_counters.sv"
+            - "waves/CAN_error_counters.do": { file_type: user }
+            - "waves/CAN_error_counters.gtkw": { file_type: user }
             # - "data/file.txt": { file_type: user }
         file_type: systemVerilogSource
         depend:
@@ -27,7 +27,7 @@ filesets:
 
     synfiles:
         files:
-            - "scripts/syn_flex_counter.tcl"
+            - "scripts/syn_CAN_error_counters.tcl"
         file_type: tclSource
         depend:
             - "u337mg005:ece337:synfiles"
@@ -36,21 +36,21 @@ targets:
     default: &default
         filesets:
             - rtl
-        toplevel: flex_counter
+        toplevel: CAN_error_counters
 
     sim: &sim
         <<: *default
         default_tool: verilator
         filesets_append:
             - tb
-        toplevel: tb_flex_counter
+        toplevel: tb_CAN_error_counters
         tools:
             modelsim:
                 vsim_options:
                     - -vopt
                     - -voptargs='+acc'
                     - -t ps
-                    - -do "source waves.tcl ; load_wave waves/flex_counter.do"
+                    - -do "source waves.tcl ; load_wave waves/CAN_error_counters.do"
                     - -onfinish stop
                     - -do "set PrefSource(OpenOnFinish) 0 ; set PrefMain(LinePrefix) \"\" ; set PrefMain(colorizeTranscript) 1"
                     - -coverage
@@ -83,7 +83,7 @@ targets:
         filesets_append:
             - synfiles
         default_tool: design_compiler
-        toplevel: flex_counter
+        toplevel: CAN_error_counters
         tools:
             design_compiler:
                 script_dir: "src/u337mg005_ece337_synfiles_0"

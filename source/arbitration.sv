@@ -5,7 +5,7 @@ module arbitration (
     input logic bus_rx, //sampled bit from CAN bus: dominant = 0, recessive = 1
     input logic tx_request,
     input logic [10:0] tx_id,
-    input logic tx_bit,     
+    input logic tx_bit, bus_off_req,
 
     output logic is_transmitter,
     output logic is_receiver,
@@ -106,14 +106,20 @@ always_comb begin
             end
         end
         RECEIVE: begin
-            if (bus_idle) begin
+            if(bus_off_req) begin //tec counter is greater than 256
+                next_state = BUS_OFF;
+            end else if (bus_idle) begin
                 next_state = IDLE;
             end else begin
                 next_state = RECEIVE;
             end
         end
         BUS_OFF: begin
-
+            if(!bus_off) begin
+                next_state = IDLE;
+            end else begin
+                next_state = BUS_OFF;
+            end
         end
         default: begin
             next_state =  IDLE;
