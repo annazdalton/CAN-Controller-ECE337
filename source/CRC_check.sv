@@ -1,6 +1,6 @@
 `timescale 1ns / 10ps
 
-module CRC_generator #(
+module CRC_check #(
     // parameters
 ) (
     input logic clk, n_rst
