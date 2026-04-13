@@ -115,7 +115,7 @@ always_comb begin
             end
         end
         BUS_OFF: begin
-            if(bus_idle = IDLE) begin
+            if(!bus_off) begin
                 next_state = IDLE;
             end else begin
                 next_state = BUS_OFF;

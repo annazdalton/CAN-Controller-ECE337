@@ -16,6 +16,19 @@ module CAN_error_counters (
     output logic [7:0] rec_out // Current REC value
 );
 
+logic bus_off_reg;
+
+always_ff @(posedge clk, negedge n_rst) begin
+    if (~n_rst)
+        bus_off_reg <= 1'b0;
+    else if (tec >= 9'd256)
+        bus_off_reg <= 1'b1;
+    else if (recovery_done)
+        bus_off_reg <= 1'b0;
+end
+
+assign bus_off = bus_off_reg;
+
 //TEC
 logic [8:0] tec, next_tec;
 
@@ -31,7 +44,7 @@ always_comb begin
     //default
     next_tec = tec;
 
-    if(in_bus_off) begin
+    if(bus_off_reg) begin
         next_tec = '0;
     end else if(tx_error) begin
         next_tec = (tec + 9'd8 >= 9'd256) ? 9'd256 : tec + 9'd8; //add 8
@@ -86,7 +99,7 @@ flex_counter_CDL #(.SIZE(4)) recessive_run_count (
     .clk (clk),
     .n_rst (n_rst),
     .count_enable (idle_rollover),
-    .clear (~in_bus_off), //reset of not is bus off state
+    .clear (~bus_off_reg), //reset of not is bus off state
     .rollover_val (8'd128),
     .count_out (seq_count_out),
     .rollover_flag  (recovery_done)
