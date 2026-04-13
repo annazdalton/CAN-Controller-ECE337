@@ -35,7 +35,7 @@ assign arb_active = (state == ARB_PHASE)? 1'b1: 1'b0;
 
 //counts 11 ressesive bits
 always_ff @(posedge clk, negedge rst_n) begin
-    if (~rst_n) begin
+    if (~n_rst) begin
         idle_count <= '0;
     end else begin
         idle_count <= idle_count_next;
@@ -54,7 +54,7 @@ end
 
 //counts bits in arb field
 always_ff @(posedge clk, negedge rst_n) begin
-    if (~rst_n) begin
+    if (~n_rst) begin
         bit_count <= '0;
     end else begin
         bit_count = bit_count_next;
@@ -129,7 +129,7 @@ end
 
 //output logic 
 always_ff @(posedge clk, negedge rst_n) begin
-    if (~rst_n) begin
+    if (~n_rst) begin
         is_transmitter <= '0;
         is_receiver <= '0;
         arb_lost <= '0;
