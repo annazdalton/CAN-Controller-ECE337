@@ -36,6 +36,7 @@ module bit_timing (
     logic [9:0] active_brp;
     logic [9:0] brp_count;
     logic [5:0] tq_count;
+    logic sof_armed;
 
     // Double bitrate in FD mode by halving BRP
     always_comb begin
@@ -136,6 +137,7 @@ module bit_timing (
             resync_done_this_bit <= 1'b0;
             edge_pending <= 1'b0;
             edge_tq_snapshot <= '0;
+            sof_armed <= 1'b0;
         end else begin
             sample_tick <= 1'b0;
             bit_tick <= 1'b0;
@@ -145,18 +147,28 @@ module bit_timing (
             late_edge <= 1'b0;
             timing_error <= 1'b0;
 
+            // Arm SOF hard-sync while bus is idle.
+            // This avoids missing SOF when bus_idle deasserts before rx_falling_edge
+            // emerges from the RX synchronizer.
+            if (!enable) begin
+                sof_armed <= 1'b0;
+            end else if (bus_idle) begin
+                sof_armed <= 1'b1;
+            end
+
             // Capture edge timing even when it doesn't land exactly on tq_tick
             if (enable && rx_edge && rx_active && resync_enable && !resync_done_this_bit && !edge_pending) begin
                 edge_pending <= 1'b1;
                 edge_tq_snapshot <= tq_count;
             end
 
-            // Hard synchronization on SOF while bus is idle
-            if (enable && bus_idle && rx_falling_edge) begin
+            // Hard synchronization on SOF while bus is (or was just) idle
+            if (enable && sof_armed && rx_falling_edge) begin
                 tq_count <= 6'd0;
                 hard_sync_pulse <= 1'b1;
                 resync_done_this_bit <= 1'b0;
                 edge_pending <= 1'b0;
+                sof_armed <= 1'b0;
             end else if (enable && tq_tick) begin
                 // Optional sample event
                 if (tq_count == sample_tq) begin
