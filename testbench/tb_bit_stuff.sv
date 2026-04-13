@@ -80,16 +80,31 @@ module tb_bit_stuff ();
     initial begin
         n_rst = 1;
         out_ready = 1;
+        stuffing_enable = 0;
+        in_valid = 0;
+        in_bit = 0;
 
         reset_dut;
 
+        stuffing_enable = 1;
         send_sequence(8'b10101010, 8);
         
+
+        stuffing_enable = 0;
+        @(posedge clk);
+
+        stuffing_enable = 1;
         // should insert
         send_sequence(8'b11111011, 8);
 
+
+        stuffing_enable = 0;
+        @(posedge clk);
+
+        stuffing_enable = 1;
         send_sequence(16'b1111111111111111, 16);
 
+        stuffing_enable = 0;
         $finish;
     end
 endmodule

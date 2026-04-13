@@ -14,7 +14,6 @@ module tb_CRC_check ();
 
     localparam logic [14:0] POLY = 15'b110001011001100;
 
-    logic clk, n_rst;
     logic start;
     logic [63:0] data;
     logic [2:0] data_len;
@@ -103,6 +102,9 @@ module tb_CRC_check ();
     initial begin
         n_rst = 1;
         start = 0;
+        data = '0;
+        data_len = '0;
+        crc_in = '0;
         
         reset_dut;
 

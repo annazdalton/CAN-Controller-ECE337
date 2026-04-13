@@ -49,7 +49,7 @@ module CRC_generator #(
                 logic current_bit;
                 logic feedback;
 
-                current_bit = data[63 - (byte_idx * + bit_idx)];
+                current_bit = data[63 - (byte_idx * 8 + bit_idx)];
 
                 //crc step
                 feedback = current_bit ^ crc_reg[14];
@@ -65,6 +65,11 @@ module CRC_generator #(
                 end
 
                 else begin
+                    next_bit_idx = bit_idx + 1;
+                end
+            end
+            else begin
+                if (byte_idx == data_len && bit_idx == 0) begin
                     next_busy = 0;
                 end
             end

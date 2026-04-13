@@ -78,15 +78,26 @@ module tb_bit_destuff ();
 
     initial begin
         n_rst = 1;
-
+        destuff_enable = 0;
+        in_bit = 0;
+        in_valid = 0;
+        out_ready = 1;
         reset_dut;
 
         // no stuffing
+        destuff_enable = 1;
         send_sequence(8'b10101010, 8);
 
+        destuff_enable = 0;
+        @(posedge clk);
+        destuff_enable = 1;
         // one stuffing
         send_sequence(7'b1111101, 7);
 
+        destuff_enable = 0;
+        @(posedge clk);
+        destuff_enable = 1;
+        
         // multiple stuffing
         send_sequence(16'b1111101111101111, 16);
         $finish;

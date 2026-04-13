@@ -43,6 +43,7 @@ module tb_data_frame_fsm ();
     data_frame_fsm DUT (
         .clk(clk),
         .n_rst(n_rst),
+        .new_message(new_message),
         .data_len(data_len),
         .data_field(data_field),
         .data_frame(data_frame),
@@ -71,7 +72,9 @@ module tb_data_frame_fsm ();
     endtask
     initial begin
         n_rst = 1;
-
+        new_message = 0;
+        data_len = '0;
+        data_field = '0;
         reset_dut;
 
         run_test(64'h1234_5678_9ABC_DEF0, 8);
