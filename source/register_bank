@@ -1,6 +1,6 @@
 `timescale 1ns / 10ps
 
-module arbitration #(
+module register_bank #(
     // parameters
 ) (
     input logic clk, n_rst
