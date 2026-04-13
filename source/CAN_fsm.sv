@@ -119,7 +119,7 @@ always_comb begin
             count_clear = 1'b0;
 
             if(data_done) begin
-                next_state = ERROR;
+                next_state = ACK;
             end else begin
                 next_state = DATA;
             end
