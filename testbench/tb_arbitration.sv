@@ -29,7 +29,7 @@ module tb_arbitration ();
         .bus_rx(bus_rx), //sampled bit from CAN bus: dominant = 0, recessive = 1
         .tx_request(tx_request),
         .tx_id(tx_id),
-        .tx_bit(tx_bit), 
+        .tx_bit(tx_bit),
         .bus_off_req(bus_off_req),
 
         .is_transmitter(is_transmitter),
@@ -61,9 +61,9 @@ module tb_arbitration ();
     logic check_mismatch;
 
     task check_output;
-        input logic expected_output;
-        input logic actual_output;
         input string test_name;
+        input logic actual_output;
+        input logic expected_output;
     begin
         check_mismatch = 0;
         check_pulse = 1;
@@ -79,16 +79,87 @@ module tb_arbitration ();
     end
     endtask
 
+    // tx_bit_vec: whats being transmitted (MSB first)
+    // bus_rx_vec: what appears on the bus (MSB first)
+    task automatic drive_arb_phase (
+        input int n,
+        input logic [10:0] tx_bit_vec,
+        input logic [10:0] bus_rx_vec
+    );
+        for (int i = n-1; i >= 0; i--) begin
+            tx_bit = tx_bit_vec[i];
+            bus_rx = bus_rx_vec[i];
+            @(posedge clk); #1;
+        end
+    endtask
+
+    //send 11 resessive bits
+    task automatic wait_bus_idle();
+        bus_rx = 1'b1;
+        repeat (12) @(posedge clk);
+        #1;
+    endtask
+
     initial begin
         n_rst = 1;
 
         reset_dut;
+        //reset/idle checks
+        check_output("is_transmitter = 0 after reset", is_transmitter, 1'b0);
+        check_output("is_receiver = 0 after reset",    is_receiver,    1'b0);
+        check_output("arb_lost = 0 after reset",       arb_lost,       1'b0);
+        check_output("arb_active = 0 after reset",     arb_active,     1'b0);
 
-        //IDLE
-        check_output(1'b0, is_transmitter, "check is_transmitter is low, idle state");
-        check_output(1'b0, is_receiver, "check is_reciever is low, idle state");
+        // bus_rx starts at 1 - send 10 more 1s
+        bus_rx = 1'b1;
+        repeat (10) begin
+            @(posedge clk); 
+            #1;
+        end
+        check_output("bus_idle goes high after 11 recessive bits", bus_idle, 1'b1);
+ 
+        // add one dominant bit, idle_count should reset
+        bus_rx = 1'b0;
+        @(posedge clk); 
+        #1;
+        check_output("bus_idle goes low after dominant bit", bus_idle, 1'b0);
 
+        // check sof works
+        wait_bus_idle();
+        check_output("bus_idle before SOF", bus_idle, 1'b1);
+ 
+        // SOF: first dominant bit after idle
+        bus_rx = 1'b0;
+        tx_request = 1'b0;
+        @(posedge clk); 
+        #1;
+        @(posedge clk); 
+        #1;
 
+        check_output("is_receiver = 1, SOF", is_receiver, 1'b1);
+        check_output("is_transmitter = 0", is_transmitter, 1'b0);
+        check_output("arb_active= 0, RECEIVE", arb_active, 1'b0);
+
+        bus_rx = 1'b1;
+        repeat (10) begin
+            @(posedge clk); 
+            #1;
+        end
+        check_output("bus_idle goes high after 11 recessive bits", bus_idle, 1'b1);
+
+        
+        @(negedge clk); //back to idle
+        check_output("is_receiver = 0, IDLE", is_receiver, 1'b0);
+        tx_request = 1; 
+
+        bus_rx = 1'b1;
+        repeat (10) begin
+            @(posedge clk); 
+            #1;
+        end
+        check_output("bus_idle goes high after 11 recessive bits", bus_idle, 1'b1);
+
+        #300ns;
         $finish;
     end
 endmodule
