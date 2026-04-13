@@ -36,9 +36,9 @@ shift_reg #(.SIZE(14), .MSB_FIRST(0)
     .clk(clk), 
     .n_rst(n_rst), 
     .shift_enable(shift_en), 
-    .serial_in(), 
+    .serial_in(1'b0), 
     .load_enable(par_load_en),
-    .parallel_in(error_fram),
+    .parallel_in(error_frame),
     .serial_out(serial_out),
     .parallel_out()
 );
@@ -71,7 +71,7 @@ case(state)
         par_load_en = 1'b0;
 
         if(error) begin
-            next_state = ERR_FRAME;
+            next_state = ERR_LOAD;
         end else begin
             next_state = IDLE;
         end
@@ -111,8 +111,18 @@ case(state)
         if(wait_done) begin
             next_state = IDLE;
         end else begin
-            next_state = ERR_FRAME;
+            next_state = INTER;
         end
+    end
+    default: begin
+        error_frame = 14'b0;
+        shift_en  = 1'b0;
+        error_idle = 1'b0;
+        count_en = 1'b0;
+        count_clear = 1'b0;
+        par_load_en = 1'b0;
+
+        next_state = IDLE;
     end
 endcase
 end

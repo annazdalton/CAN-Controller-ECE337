@@ -37,7 +37,7 @@ module shift_reg #(
 
     always_comb begin
         if (MSB_FIRST) begin
-            serial_out = parallel_out[SIZE];
+            serial_out = parallel_out[SIZE-1];
         end else begin
             serial_out = parallel_out[0];
         end

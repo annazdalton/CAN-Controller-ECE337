@@ -1,8 +1,8 @@
 `timescale 1ns / 10ps
 
 module host_interface #(
-    parameter int ADDR_W = 4,
-    parameter int DATA_W = 8
+    parameter ADDR_W = 4,
+    parameter DATA_W = 8
 ) (
     input logic clk, n_rst,
 
@@ -10,7 +10,7 @@ module host_interface #(
     input logic host_wr_req,
     input logic host_rd_req,
     input logic [DATA_W-1:0] host_wdata,
-    input logic [ADDR_W-1-0] host_addr,
+    input logic [ADDR_W-1:0] host_addr,
 
     // From register_bank
     input logic [DATA_W-1:0] reg_rdata,
