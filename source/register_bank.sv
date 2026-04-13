@@ -10,22 +10,22 @@ module register_bank #(
     input logic clk, n_rst,
 
      // From host_interface
-    input  logic              reg_wr_en,
-    input  logic              reg_rd_en,
+    input  logic reg_wr_en,
+    input  logic reg_rd_en,
     input  logic [DATA_W-1:0] reg_wdata,
     input  logic [ADDR_W-1:0] reg_addr,
 
     // From irq_status_ctrl
-    input  logic [IRQ_W-1:0]  irq_status,
+    input  logic [IRQ_W-1:0] irq_status,
 
     // To host_interface
     output logic [DATA_W-1:0] reg_rdata,
-    output logic              wr_accept,
-    output logic              rd_valid,
+    output logic wr_accept,
+    output logic rd_valid,
 
     // To irq_status_ctrl
-    output logic [IRQ_W-1:0]  irq_enable_reg,
-    output logic [IRQ_W-1:0]  irq_clear,
+    output logic [IRQ_W-1:0] irq_enable_reg,
+    output logic [IRQ_W-1:0] irq_clear,
 
     // To other modules
     output logic [DATA_W-1:0] mode_cfg,
