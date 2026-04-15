@@ -9,25 +9,15 @@ module CAN_top #(
 
 logic bus_idle, arb_active, error, error_idle,
 
-arbitration arb (
-    .clk(clk), 
-    .n_rst(n_rst),
-    .bus_rx(bus_rx), //sampled bit from CAN bus: dominant = 0, recessive = 1
-    .tx_request(tx_request),
-    .tx_id(),
-    .tx_bit(), 
-    .bus_off_req(),
+//error handling
+logic error_active, error_passive, error_serial_out, bus_off, bus_off_tec_rec, recovery_done;
 
-    .is_transmitter(),
-    .is_receiver(),
-    .arb_lost(), 
-    .bus_idle(bus_idle), // 1 = bus is idle (11 recessive bits detected)
-    .arb_active() //1 is arb phase is ongoing 
-);
+//tx and rx datapath
+logic is_transmitter, is_receiver;
 
 CAN_fsm protocol_fsm(
     .clk(clk), 
-    .n_rst(),
+    .n_rst(n_rst),
     .tx_request(tx_request), 
     .bus_idle(bus_idle), .
     .node_off(), 
@@ -52,14 +42,16 @@ error_frame_fsm error_frame(
     .clk(clk), 
     .n_rst(n_rst),
     .error(error),
+    .error_passive(error_passive),
+    .erro_actice(error_active),
     
-    .serial_out(), 
+    .serial_out(error_serial_out), //figure out how to integrate into datapath 
     .error_idle(error_idle)
 );
 
 CAN_error_counters tec_rec(
-    .clk(), 
-    .n_rst(),
+    .clk(clk), 
+    .n_rst(n_rst),
 
     .tx_error(), 
     .tx_success(), 
@@ -67,12 +59,30 @@ CAN_error_counters tec_rec(
     .rx_success(),
 
     .bus_rx(bus_rx),
-    .bus_off_i(),
+    .bus_off_i(bus_off),
 
-    .error_active(), 
-    .error_passive(),
-    .bus_off(),
-    .recovery_done()
+    .error_active(error_active), 
+    .error_passive(error_passive),
+    .bus_off(bus_off_tec_rec),
+    .recovery_done(recovery_done)
+);
+
+arbitration arb (
+    .clk(clk), 
+    .n_rst(n_rst),
+    .bus_rx(bus_rx), 
+    .tx_request(tx_request),
+    .tx_id(),
+    .tx_bit(), 
+    .recovery_done(recovery_done),
+    .bus_off_req(bus_off_tec_rec),
+
+    .is_transmitter(is_transmitter),
+    .is_receiver(is_receiver),
+    .arb_lost(), 
+    .bus_off_o(bus_off),
+    .bus_idle(bus_idle), 
+    .arb_active(arb_active)
 );
 
 
