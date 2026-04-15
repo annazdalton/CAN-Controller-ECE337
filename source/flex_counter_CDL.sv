@@ -27,7 +27,7 @@ module flex_counter_CDL #(parameter SIZE = 8) (
             if(count_out == rollover_val | count_out > rollover_val) begin
                 count_next = 'b1;
             end else begin
-                count_next = count_out + 1'd1;
+                count_next = count_out + 'b1;
             end
         end else begin
             count_next = count_out;

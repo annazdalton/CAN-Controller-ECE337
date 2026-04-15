@@ -2,114 +2,96 @@
 
 module CAN_error_counters (
     input logic clk, n_rst,
+    input  logic tx_error, tx_success, rx_error, rx_success, bus_off_i, bus_rx,
 
-    input  logic tx_error, tx_success, rx_error_plus8, rx_error_plus1, rx_success,
-
-    //inputs from arbitration module
-    input  logic bus_rx,
-    input  logic in_bus_off,
-
-    output logic error_active, // TEC < 128 && REC < 128
-    output logic error_passive, // TEC >= 128 || REC >= 128 (but not bus off)
-    output logic bus_off, // TEC >= 256
-    output logic [8:0] tec_out, // Current TEC value
-    output logic [7:0] rec_out // Current REC value
+    output logic error_active, error_passive,
+    output logic bus_off, recovery_done
 );
 
-logic bus_off_reg;
+logic bus_off_reg, idle_rollover, dominant_bit, rec_seq_en;
 
 //TEC
-logic [8:0] tec, next_tec;
+logic [8:0] tec_count, next_tec;
+logic [7:0] rec_count, next_rec; 
+
 
 always_ff @(posedge clk, negedge n_rst) begin
     if(~n_rst) begin
-        tec <= '0;
+        tec_count <= '0;
     end else begin
-        tec <= next_tec; 
+        tec_count <= next_tec; 
     end
 end
 
 always_comb begin
-    //default
-    next_tec = tec;
-
     if(bus_off_reg) begin
         next_tec = '0;
     end else if(tx_error) begin
-        next_tec = (tec + 9'd8 >= 9'd256) ? 9'd256 : tec + 9'd8; //add 8
+        next_tec = tec_count + 8'd8;
     end else if (tx_success) begin
-        next_tec = (tec == 9'd0) ? 9'd0 : tec - 9'd1; //subtract 1
+        next_tec = tec_count - 8'd1;
+    end else begin
+        next_tec = tec_count;
     end
 end
 
 //REC
-logic [7:0] rec, next_rec; 
 always_ff @(posedge clk, negedge n_rst) begin
     if(~n_rst) begin
-        rec <= '0;
+        rec_count <= '0;
     end else begin
-        rec <= next_rec; 
+        rec_count <= next_rec; 
     end
 end
 
 always_comb begin
-    //default
-    next_rec = rec;
-
-    if (rx_error_plus8) begin
-        next_rec = (rec + 8'd8 >= 8'd127) ? 8'd127 : rec + 8'd8;
-    end else if (rx_error_plus8) begin
-        next_rec = (rec + 8'd8 >= 8'd127) ? 8'd127 : rec + 8'd8;
-    end else if (rx_error_plus1) begin
-        next_rec = (rec + 8'd1 >= 8'd127) ? 8'd127 : rec + 8'd1;
+    if(bus_off_reg) begin
+        next_rec = '0;
+    end else if(rx_error) begin
+        next_rec = rec_count + 8'd1;
     end else if (rx_success) begin
-        next_rec = (rec == 8'd0) ? 8'd0 : rec - 8'd1;
+        next_rec = rec_count - 8'd1;
+    end else begin
+        next_rec = rec_count;
     end
 end
 
-//bus off state (arbitration module) recovery counter
-logic [3:0] idle_count_out;
-logic idle_rollover, dominant_seen,recovery_done;
-logic [7:0] seq_count_out;
+always_ff @(posedge clk, negedge n_rst) begin
+    if (~n_rst)
+        bus_off <= 1'b0;
+    else begin
+        bus_off <= bus_off_reg;
+    end
+end
 
-assign dominant_seen = (in_bus_off && bus_rx == 1'b0);
+assign error_passive = ~bus_off && (tec_count >= 9'd128 || rec_count >= 8'd128);
+assign error_active = ~bus_off && (tec_count < 9'd128 || rec_count <= 8'd128);
 
-flex_counter_CDL #(.SIZE(4)) recessive_run_count (
+//bus off state (from arbitration module) recovery counter
+
+assign dominant_bit = bus_off_i && (bus_rx == 1'b0);
+assign rec_seq_en = bus_off_i && (bus_rx == 1'b1);
+
+flex_counter_CDL #(.SIZE(4)) counter_11 (
     .clk (clk),
     .n_rst (n_rst),
-    .count_enable (in_bus_off && bus_rx == 1'b1),//only counts recissive bits (1)
-    .clear (dominant_seen),
+    .count_enable (rec_seq_en), //only counts recissive bits (1)
+    .clear(dominant_bit),
     .rollover_val (4'd11),
-    .count_out (idle_count_out),
+    .count_out (),
     .rollover_flag (idle_rollover)
 );
 
- flex_counter_CDL #(.SIZE(8)) recover_seq_countt (
+//count 128 occurences of 11-bit recissive sequence
+flex_counter_CDL #(.SIZE(8)) recover_seq_count (
     .clk (clk),
     .n_rst (n_rst),
     .count_enable (idle_rollover),
     .clear (~bus_off_reg), //reset of not is bus off state
     .rollover_val (8'd128),
-    .count_out (seq_count_out),
-    .rollover_flag  (recovery_done)
+    .count_out (),
+    .rollover_flag (recovery_done)
 );
-
-always_ff @(posedge clk, negedge n_rst) begin
-    if (~n_rst)
-        bus_off_reg <= 1'b0;
-    else if (tec >= 9'd256)
-        bus_off_reg <= 1'b1;
-    else if (recovery_done)
-        bus_off_reg <= 1'b0;
-end
-
-assign bus_off = bus_off_reg;
-
-assign error_passive = ~bus_off && (tec >= 9'd128 || rec >= 8'd128);
-assign error_active  = ~bus_off && ~error_passive;
-
-assign tec_out = tec;
-assign rec_out = rec;
 
 endmodule
 
