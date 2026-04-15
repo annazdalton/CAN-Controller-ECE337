@@ -3,7 +3,7 @@
 module error_frame_fsm (
     input logic clk, n_rst,
     input logic error,
-    output logic serial_out, error_idle
+    output logic serial_out, error_idle,
 );
 
 logic [13:0] error_frame;
