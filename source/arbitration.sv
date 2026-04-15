@@ -61,8 +61,8 @@ always_comb begin
             is_receiver = 1'b0;
         end
         ARB_PHASE: begin
-            idle_count_en = '0;
-            bit_count_en = '0;
+            idle_count_en = ';
+            bit_count_en = '1;
             bus_off_o = '0;
             bit_count_clr = '0;
             is_transmitter = '0;
