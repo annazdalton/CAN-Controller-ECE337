@@ -1,0 +1,102 @@
+CAPI=2:
+name: "u337mg078:ece337:host_cfg_top:1.0.0"
+description: ""
+
+filesets:
+    rtl:
+        files:
+            - "source/host_cfg_top.sv"
+        file_type: systemVerilogSource
+        depend:
+            - "u337mg005:ece337:host_interface:1.0.0"
+            - "u337mg078:ece337:irq_status_control:1.0.0"
+            - "u337mg078:ece337:register_bank:1.0.0"
+
+    synth:
+        depend:
+            - "ece337:tech:AMI_05_LIB"
+            - "u337mg078:ece337:host_cfg_top_syn"
+
+    tb:
+        files:
+            - "testbench/tb_host_cfg_top.sv"
+            - "waves/host_cfg_top.do": { file_type: user }
+            - "waves/host_cfg_top.gtkw": { file_type: user }
+            # - "data/file.txt": { file_type: user }
+        file_type: systemVerilogSource
+        depend:
+            - "u337mg078:ece337:questafiles"
+
+    synfiles:
+        files:
+            - "scripts/syn_host_cfg_top.tcl"
+        file_type: tclSource
+        depend:
+            - "u337mg078:ece337:synfiles"
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: host_cfg_top
+
+    sim: &sim
+        <<: *default
+        default_tool: verilator
+        filesets_append:
+            - tb
+        toplevel: tb_host_cfg_top
+        tools:
+            modelsim:
+                vsim_options:
+                    - -vopt
+                    - -voptargs='+acc'
+                    - -t ps
+                    - -do "source waves.tcl ; load_wave waves/host_cfg_top.do"
+                    - -onfinish stop
+                    - -do "set PrefSource(OpenOnFinish) 0 ; set PrefMain(LinePrefix) \"\" ; set PrefMain(colorizeTranscript) 1"
+                    - -coverage
+                vlog_options:
+                    - +cover
+            verilator:
+                verilator_options:
+                    - --cc
+                    - --trace
+                    - --main
+                    - --timing
+                    - --coverage
+                make_options:
+                    - -j
+
+    lint:
+        <<: *default
+        default_tool: verilator
+        filesets_append:
+            - tb
+        tools:
+            verilator:
+                mode: lint-only
+                verilator_options:
+                    - --timing
+                    - -Wall
+
+    syn:
+        <<: *default
+        filesets_append:
+            - synfiles
+        default_tool: design_compiler
+        toplevel: host_cfg_top
+        tools:
+            design_compiler:
+                script_dir: "src/u337mg078_ece337_synfiles_0"
+                dc_script: "synth.tcl"
+                report_dir: "reports"
+                target_library: "/home/ecegrid/a/ece337/summer24-refactor/tech/ami05/osu05_stdcells.db"
+                libs: "/home/ecegrid/a/ece337/summer24-refactor/tech/ami05/osu05_stdcells.db dw_foundation.sldb"
+
+    syn_sim:
+        <<: *sim
+        filesets:
+            - synth
+            - tb
+
