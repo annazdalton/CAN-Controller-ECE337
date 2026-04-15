@@ -2,16 +2,14 @@
 
 module arbitration (
     input logic clk, n_rst,
-    input logic bus_rx, //sampled bit from CAN bus: dominant = 0, recessive = 1
+    input logic bus_rx, //bit from CAN bus: dominant = 0, recessive = 1
     input logic tx_request,
     input logic [10:0] tx_id,
-    input logic tx_bit, bus_off_req,
+    input logic tx_bit, recovery_done, bus_off_req, 
 
-    output logic is_transmitter,
-    output logic is_receiver,
-    output logic arb_lost, 
+    output logic is_transmitter, is_receiver, arb_lost, bus_off_o,
     output logic bus_idle, // 1 = bus is idle (11 recessive bits detected)
-    output logic arb_active //1 is arb phase is ongoing 
+    output logic arb_active 
 );
 
 typedef enum logic [2:0] {
@@ -24,48 +22,84 @@ typedef enum logic [2:0] {
 
 arb_state_t state, next_state; 
 
-logic [4:0] idle_count, idle_count_next;
-logic [5:0] bit_count, bit_count_next;
-logic arb_lost_internal, sof_detected;
+logic sof_detected, bit_count_en, bit_count_clr, arb_done, idle_count_en;
 
-assign bus_idle = (idle_count >= 5'd11)? 1'b1: 1'b0;
-assign sof_detected = (bus_idle && bus_rx == 1'b0)? 1'b1: 1'b0; // SOF is the first 0 after idle
-assign arb_lost_internal = (state == ARB_PHASE) && (tx_bit  == 1'b1) && (bus_rx  == 1'b0); 
+assign sof_detected = bus_idle && !bus_rx; // SOF is the first 0 after idle
+assign arb_lost = (state == ARB_PHASE) && (tx_bit  == 1'b1) && (bus_rx  == 1'b0);
 assign arb_active = (state == ARB_PHASE)? 1'b1: 1'b0;
 
-//counts 11 ressesive bits
-always_ff @(posedge clk, negedge n_rst) begin
-    if (~n_rst) begin
-        idle_count <= '0;
-    end else begin
-        idle_count <= idle_count_next;
-    end
-end
+//idle counter - count 11 recessive bits
+flex_counter_CDL #(.SIZE(4)) counter_11 (
+    .clk (clk),
+    .n_rst (n_rst),
+    .count_enable (idle_count_en), //only counts recissive bits (1)
+    .clear(!bus_rx),
+    .rollover_val (4'd11),
+    .count_out(),
+    .rollover_flag(bus_idle)
+);
 
-always_comb begin
-    if (bus_rx == 1'b0) begin //reset if theres a dominant bit
-        idle_count_next = '0;
-    end else if (idle_count < 5'd11) begin
-        idle_count_next <= idle_count + 1'b1;
-    end else begin
-        idle_count_next <= idle_count;
-    end
-end
-
-//counts bits in arb field
-always_ff @(posedge clk, negedge n_rst) begin
-    if (~n_rst) begin
-        bit_count <= '0;
-    end else begin
-        bit_count <= bit_count_next;
-    end
-end
+//bit counter for arb state to transmit state
+flex_counter_CDL #(.SIZE(4)) arb_done_count (
+    .clk (clk),
+    .n_rst (n_rst),
+    .count_enable (bit_count_en), //only counts recissive bits (1)
+    .clear(bit_count_clr),
+    .rollover_val (4'd11),
+    .count_out (),
+    .rollover_flag(arb_done)
+);
 
 always_comb begin
     case(state)
-        IDLE: bit_count_next = '0;
-        ARB_PHASE: bit_count_next = bit_count + 1'b1;
-        default: bit_count_next = bit_count;
+        IDLE: begin
+            idle_count_en = 1'b0;
+            bit_count_en = 1'b0;
+            bus_off_o = 1'b0;
+            bit_count_clr = 1'b1;
+            is_transmitter = 1'b0;
+            is_receiver = 1'b0;
+        end
+        ARB_PHASE: begin
+            idle_count_en = '0;
+            bit_count_en = '0;
+            bus_off_o = '0;
+            bit_count_clr = '0;
+            is_transmitter = '0;
+            is_receiver = '0;
+        end
+        TRANSMIT: begin
+            idle_count_en = '1;
+            bit_count_en = '0;
+            bus_off_o = '0;
+            bit_count_clr = '0;
+            is_transmitter = '1;
+            is_receiver = '0;
+        end
+        RECEIVE: begin
+            idle_count_en = '0;
+            bit_count_en = '0;
+            bus_off_o = '0;
+            bit_count_clr = '0;
+            is_transmitter = '0;
+            is_receiver = '1;
+        end
+        BUS_OFF: begin
+            idle_count_en = '0;
+            bit_count_en = '0;
+            bus_off_o = '1;
+            bit_count_clr = '0;
+            is_transmitter = '0;
+            is_receiver = '0;
+        end
+        default: begin
+            idle_count_en = '0;
+            bit_count_en = '0;
+            bus_off_o = '0;
+            bit_count_clr = '0;
+            is_transmitter = '0;
+            is_receiver = '0;
+        end
     endcase
 end
 
@@ -90,23 +124,25 @@ always_comb begin
             end
         end
         ARB_PHASE: begin
-            if (arb_lost_internal) begin
+            if (arb_lost) begin
                 next_state = RECEIVE;
-            end else if (bit_count == (6'd11)) begin
+            end else if (arb_done) begin
                 next_state = TRANSMIT;
             end else begin
                 next_state = ARB_PHASE;
             end
         end
         TRANSMIT: begin
-            if (bus_idle) begin
+            if (bus_off_req) begin
+                next_state = BUS_OFF;
+            end else if (bus_idle) begin
                 next_state = IDLE;
             end else begin
                 next_state = TRANSMIT;
             end
         end
         RECEIVE: begin
-            if(!bus_off_req) begin //tec counter is greater than 256
+            if(bus_off_req) begin 
                 next_state = BUS_OFF;
             end else if (bus_idle) begin
                 next_state = IDLE;
@@ -115,7 +151,7 @@ always_comb begin
             end
         end
         BUS_OFF: begin
-            if(bus_off_req) begin
+            if(recovery_done) begin
                 next_state = IDLE;
             end else begin
                 next_state = BUS_OFF;
@@ -125,19 +161,6 @@ always_comb begin
             next_state =  IDLE;
         end
     endcase
-end
-
-//output logic 
-always_ff @(posedge clk, negedge n_rst) begin
-    if (~n_rst) begin
-        is_transmitter <= '0;
-        is_receiver <= '0;
-        arb_lost <= '0;
-    end else begin
-        is_transmitter <= (next_state == TRANSMIT);
-        is_receiver <= (next_state == RECEIVE);
-        arb_lost <= arb_lost_internal; //pulse
-    end
 end
 
 endmodule

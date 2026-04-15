@@ -71,6 +71,7 @@ assign error_active = ~bus_off && (tec_count < 9'd128 || rec_count <= 8'd128);
 
 assign dominant_bit = bus_off_i && (bus_rx == 1'b0);
 assign rec_seq_en = bus_off_i && (bus_rx == 1'b1);
+assign bus_off_reg = (tec_count >= 255 | rec_count >= 255)? 1'b1: 1'b0;
 
 flex_counter_CDL #(.SIZE(4)) counter_11 (
     .clk (clk),

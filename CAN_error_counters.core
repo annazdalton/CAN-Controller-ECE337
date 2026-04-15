@@ -7,8 +7,8 @@ filesets:
         files:
             - "source/CAN_error_counters.sv"
         file_type: systemVerilogSource
-        # depend:
-        #     - "fusesoc:core:name"
+        depend:
+            - "u337mg005:ece337:flex_counter_CDL:1.0.0"
 
     synth:
         depend:
