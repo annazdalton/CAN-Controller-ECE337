@@ -63,18 +63,16 @@ CAN_error_counters tec_rec(
 
     .tx_error(), 
     .tx_success(), 
-    .rx_error_plus8(), 
-    .rx_error_plus1(), 
+    .rx_error(),
     .rx_success(),
 
     .bus_rx(bus_rx),
-    .in_bus_off(),
+    .bus_off_i(),
 
     .error_active(), 
     .error_passive(),
     .bus_off(),
-    .tec_out(),
-    .rec_out()
+    .recovery_done()
 );
 
 
