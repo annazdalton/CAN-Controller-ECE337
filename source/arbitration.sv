@@ -2,6 +2,7 @@
 
 module arbitration (
     input logic clk, n_rst,
+    input logic bit_tick,
     input logic bus_rx, //bit from CAN bus: dominant = 0, recessive = 1
     input logic tx_request,
     input logic [10:0] tx_id,
@@ -24,8 +25,8 @@ arb_state_t state, next_state;
 
 logic sof_detected, bit_count_en, bit_count_clr, arb_done, idle_count_en;
 
-assign sof_detected = bus_idle && !bus_rx; // SOF is the first 0 after idle
-assign arb_lost = (state == ARB_PHASE) && (tx_bit  == 1'b1) && (bus_rx  == 1'b0);
+assign sof_detected = bit_tick && bus_idle && !bus_rx; // SOF is the first 0 after idle
+assign arb_lost = (state == ARB_PHASE) && bit_tick && (tx_bit  == 1'b1) && (bus_rx  == 1'b0);
 assign arb_active = (state == ARB_PHASE)? 1'b1: 1'b0;
 
 //idle counter - count 11 recessive bits
@@ -53,7 +54,7 @@ flex_counter_CDL #(.SIZE(4)) arb_done_count (
 always_comb begin
     case(state)
         IDLE: begin
-            idle_count_en = 1'b0;
+            idle_count_en = bit_tick && bus_rx;
             bit_count_en = 1'b0;
             bus_off_o = 1'b0;
             bit_count_clr = 1'b1;
@@ -61,44 +62,44 @@ always_comb begin
             is_receiver = 1'b0;
         end
         ARB_PHASE: begin
-            idle_count_en = ';
-            bit_count_en = '1;
-            bus_off_o = '0;
-            bit_count_clr = '0;
-            is_transmitter = '0;
-            is_receiver = '0;
+            idle_count_en = bit_tick && bus_rx;
+            bit_count_en = bit_tick;
+            bus_off_o = 1'b0;
+            bit_count_clr = 1'b0;
+            is_transmitter = 1'b0;
+            is_receiver = 1'b0;
         end
         TRANSMIT: begin
-            idle_count_en = '1;
-            bit_count_en = '0;
-            bus_off_o = '0;
-            bit_count_clr = '0;
-            is_transmitter = '1;
-            is_receiver = '0;
+            idle_count_en = bit_tick && bus_rx;
+            bit_count_en = 1'b0;
+            bus_off_o = 1'b0;
+            bit_count_clr = 1'b0;
+            is_transmitter = 1'b1;
+            is_receiver = 1'b0;
         end
         RECEIVE: begin
-            idle_count_en = '0;
-            bit_count_en = '0;
-            bus_off_o = '0;
-            bit_count_clr = '0;
-            is_transmitter = '0;
-            is_receiver = '1;
+            idle_count_en = bit_tick && bus_rx;
+            bit_count_en = 1'b0;
+            bus_off_o = 1'b0;
+            bit_count_clr = 1'b0;
+            is_transmitter = 1'b0;
+            is_receiver = 1'b1;
         end
         BUS_OFF: begin
-            idle_count_en = '0;
-            bit_count_en = '0;
-            bus_off_o = '1;
-            bit_count_clr = '0;
-            is_transmitter = '0;
-            is_receiver = '0;
+            idle_count_en = bit_tick && bus_rx;
+            bit_count_en = 1'b0;
+            bus_off_o = 1'b1;
+            bit_count_clr = 1'b0;
+            is_transmitter = 1'b0;
+            is_receiver = 1'b0;
         end
         default: begin
-            idle_count_en = '0;
-            bit_count_en = '0;
-            bus_off_o = '0;
-            bit_count_clr = '0;
-            is_transmitter = '0;
-            is_receiver = '0;
+            idle_count_en = bit_tick && bus_rx;
+            bit_count_en = 1'b0;
+            bus_off_o = 1'b0;
+            bit_count_clr = 1'b0;
+            is_transmitter = 1'b0;
+            is_receiver = 1'b0;
         end
     endcase
 end

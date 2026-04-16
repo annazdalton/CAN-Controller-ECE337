@@ -3,154 +3,171 @@
 module data_frame_fsm #(
     // parameters
 ) (
-    input logic clk, n_rst,
+    input logic clk,
+    input logic n_rst,
 
     input logic new_message,
+    input logic [10:0] identifier,
     input logic [3:0] data_len,
     input logic [63:0] data_field,
-    
-    output logic [110: 0] data_frame,
+
+    output logic [110:0] data_frame,
+    output logic [7:0] frame_len,
+    output logic [7:0] stuff_len,
+    output logic busy,
     output logic data_ready
 );
 
-    localparam logic [10:0] IDENTIFIER = 11'h123;
-
     typedef enum logic [2:0] {
         IDLE,
-        LOAD,
         CRC_START,
         CRC_WAIT,
         ASSEMBLE,
         DONE
-
     } state_t;
 
-    state_t state, next_state;
-
+    state_t state;
+    state_t next_state;
 
     logic crc_start;
     logic crc_done;
     logic [14:0] crc_out;
 
+    logic [10:0] id_reg;
+    logic [3:0] len_reg;
+    logic [63:0] data_reg;
+
+    logic [6:0] data_bits;
+    logic [7:0] payload_bits;
+    logic [7:0] total_bits;
+    logic [7:0] crc_start_idx;
+
+    logic [6:0] build_idx;
+    logic [6:0] next_build_idx;
+
+    logic [110:0] frame_reg;
+    logic [110:0] next_frame_reg;
+
+    logic bit_to_write;
+    logic next_data_ready;
+
+    assign data_bits = {len_reg, 3'b000};
+    assign payload_bits = 8'd34 + {1'b0, data_bits};
+    assign total_bits = payload_bits + 8'd10;
+    assign crc_start_idx = 8'd19 + {1'b0, data_bits};
+
+    assign data_frame = frame_reg;
+    assign frame_len = total_bits;
+    assign stuff_len = payload_bits;
+    assign busy = (state != IDLE);
+
     CRC_generator crc_inst (
         .clk(clk),
         .n_rst(n_rst),
         .start(crc_start),
-        .data(data_field),
-        .data_len(data_len[2:0]),
+        .sof_bit(1'b0),
+        .identifier(id_reg),
+        .rtr_bit(1'b0),
+        .ide_bit(1'b0),
+        .r0_bit(1'b0),
+        .dlc(len_reg),
+        .data(data_reg),
         .done(crc_done),
         .crc_out(crc_out)
     );
 
-    logic [109:0] frame_reg, next_frame;
-    logic next_ready;
+    always_comb begin
+        bit_to_write = 1'b1;
+
+        if (build_idx == 7'd0) begin
+            bit_to_write = 1'b0;
+        end else if ((build_idx >= 7'd1) && (build_idx <= 7'd11)) begin
+            bit_to_write = id_reg[11 - build_idx];
+        end else if ((build_idx == 7'd12) || (build_idx == 7'd13) || (build_idx == 7'd14)) begin
+            bit_to_write = 1'b0;
+        end else if ((build_idx >= 7'd15) && (build_idx <= 7'd18)) begin
+            bit_to_write = len_reg[18 - build_idx];
+        end else if ((build_idx >= 7'd19) && (build_idx < crc_start_idx[6:0])) begin
+            bit_to_write = data_reg[63 - (build_idx - 7'd19)];
+        end else if ((build_idx >= crc_start_idx[6:0]) && (build_idx < (crc_start_idx[6:0] + 7'd15))) begin
+            bit_to_write = crc_out[14 - (build_idx - crc_start_idx[6:0])];
+        end else begin
+            bit_to_write = 1'b1;
+        end
+    end
 
     always_comb begin
         next_state = state;
-        crc_start  = 0;
-        next_ready = 0;
-        next_frame = frame_reg;
+        next_build_idx = build_idx;
+        next_frame_reg = frame_reg;
+        next_data_ready = 1'b0;
+        crc_start = 1'b0;
 
         case (state)
-
             IDLE: begin
-                if (new_message)
-                    next_state = LOAD;
+                next_build_idx = 7'd0;
+                next_frame_reg = '0;
+                if (new_message) begin
+                    next_state = CRC_START;
+                end
             end
 
-            LOAD: begin
-                // Start CRC
-                crc_start  = 1;
+            CRC_START: begin
+                crc_start = 1'b1;
                 next_state = CRC_WAIT;
             end
 
             CRC_WAIT: begin
-                if (crc_done)
+                if (crc_done) begin
                     next_state = ASSEMBLE;
+                    next_build_idx = 7'd0;
+                    next_frame_reg = '0;
+                end
             end
 
             ASSEMBLE: begin
-                int bit_ptr;
-                int data_bits;
-
-                bit_ptr = 110;
-
-                // SOF
-                next_frame[bit_ptr] = 0;
-                bit_ptr--;
-
-                // Identifier
-                next_frame[bit_ptr -: 11] = IDENTIFIER;
-                bit_ptr -= 11;
-
-                // RTR, IDE, r0
-                next_frame[bit_ptr] = 0; bit_ptr--;
-                next_frame[bit_ptr] = 0; bit_ptr--;
-                next_frame[bit_ptr] = 0; bit_ptr--;
-
-                // DLC
-                next_frame[bit_ptr -: 4] = data_len;
-                bit_ptr -= 4;
-
-                // DATA
-                data_bits = data_len * 8;
-
-                //next_frame[bit_ptr -: data_bits] = data_field[63 -: data_bits];
-                for (int i = 0; i < data_bits; i++) begin
-                    next_frame[bit_ptr - i] = data_field[63 - i];
+                next_frame_reg[build_idx] = bit_to_write;
+                if (build_idx == (total_bits[6:0] - 1'b1)) begin
+                    next_state = DONE;
+                end else begin
+                    next_build_idx = build_idx + 1'b1;
                 end
-
-                bit_ptr -= data_bits;
-
-                // CRC
-                next_frame[bit_ptr -: 15] = crc_out;
-                bit_ptr -= 15;
-
-                // CRC delimiter
-                next_frame[bit_ptr] = 1;
-                bit_ptr--;
-
-                // ACK, tx sends recessive (1)
-                next_frame[bit_ptr] = 1;
-                bit_ptr--;
-
-                // ACK delimiter
-                next_frame[bit_ptr] = 1;
-                bit_ptr--;
-
-                // EOF (7 bits)
-                next_frame[bit_ptr -: 7] = 7'b1111111;
-                bit_ptr -= 7;
-
-                // Interframe space (3 bits)
-                next_frame[bit_ptr -: 3] = 3'b111;
-                bit_ptr -= 3;
-                next_state = DONE;
             end
 
             DONE: begin
-                next_ready = 1;
-                if (!new_message)
+                next_data_ready = 1'b1;
+                if (!new_message) begin
                     next_state = IDLE;
+                end
             end
 
+            default: begin
+                next_state = IDLE;
+            end
         endcase
     end
 
-
-    always_ff @(posedge clk,  negedge n_rst) begin
+    always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
             state <= IDLE;
-            frame_reg <= 0;
-            data_ready <= 0;
-        end
-        else begin
+            id_reg <= 11'd0;
+            len_reg <= 4'd0;
+            data_reg <= 64'd0;
+            build_idx <= 7'd0;
+            frame_reg <= '0;
+            data_ready <= 1'b0;
+        end else begin
             state <= next_state;
-            frame_reg <= next_frame;
-            data_ready <= next_ready;
+            build_idx <= next_build_idx;
+            frame_reg <= next_frame_reg;
+            data_ready <= next_data_ready;
+
+            if ((state == IDLE) && new_message) begin
+                id_reg <= identifier;
+                len_reg <= data_len;
+                data_reg <= data_field;
+            end
         end
     end
 
-    assign data_frame = frame_reg;
 endmodule
-
