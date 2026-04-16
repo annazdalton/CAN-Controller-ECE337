@@ -120,8 +120,10 @@ module tb_CAN_top;
 
     task reset_dut;
     begin
+        @(negedge clk);
         n_rst = 1'b0;
         repeat (6) @(posedge clk);
+        @(negedge clk);
         n_rst = 1'b1;
         repeat (6) @(posedge clk);
     end
@@ -219,18 +221,18 @@ module tb_CAN_top;
         testcase = "Node A transmits one frame";
         $display("[%0t] %s", $time, testcase);
 
-        @(posedge clk);
+        @(negedge clk);
         tx_wr_en_a = 1'b1;
         tx_wr_id_a = 11'h321;
         tx_wr_dlc_a = 4'd2;
         tx_wr_data_a = 64'hABCD_0000_0000_0000;
 
-        @(posedge clk);
+        @(negedge clk);
         tx_wr_en_a = 1'b0;
 
-        @(posedge clk);
+        @(negedge clk);
         tx_request_a = 1'b1;
-        @(posedge clk);
+        @(negedge clk);
         tx_request_a = 1'b0;
 
         monitor_nodes(20000);
@@ -262,7 +264,7 @@ module tb_CAN_top;
         testcase = "Simultaneous transmit request from both nodes";
         $display("[%0t] %s", $time, testcase);
 
-        @(posedge clk);
+        @(negedge clk);
         tx_wr_en_a = 1'b1;
         tx_wr_id_a = 11'h300;
         tx_wr_dlc_a = 4'd1;
@@ -272,14 +274,14 @@ module tb_CAN_top;
         tx_wr_dlc_b = 4'd1;
         tx_wr_data_b = 64'h3C00_0000_0000_0000;
 
-        @(posedge clk);
+        @(negedge clk);
         tx_wr_en_a = 1'b0;
         tx_wr_en_b = 1'b0;
 
-        @(posedge clk);
+        @(negedge clk);
         tx_request_a = 1'b1;
         tx_request_b = 1'b1;
-        @(posedge clk);
+        @(negedge clk);
         tx_request_a = 1'b0;
         tx_request_b = 1'b0;
 
@@ -307,10 +309,10 @@ module tb_CAN_top;
         pre_pop_a = rx_count_a;
         pre_pop_b = rx_count_b;
 
-        @(posedge clk);
+        @(negedge clk);
         rx_pop_a = 1'b1;
         rx_pop_b = 1'b1;
-        @(posedge clk);
+        @(negedge clk);
         rx_pop_a = 1'b0;
         rx_pop_b = 1'b0;
 
