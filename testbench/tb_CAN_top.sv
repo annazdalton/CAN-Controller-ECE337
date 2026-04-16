@@ -92,7 +92,7 @@ module tb_CAN_top;
 
     task init_signals;
     begin
-        n_rst = 1'b1;
+        n_rst = 1'b0;
 
         tx_request_a = 1'b0;
         tx_wr_en_a = 1'b0;
