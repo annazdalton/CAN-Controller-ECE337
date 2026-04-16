@@ -7,8 +7,8 @@ filesets:
         files:
             - "source/rx_buffer.sv"
         file_type: systemVerilogSource
-        # depend:
-        #     - "fusesoc:core:name"
+        depend:
+            - "u337mg005:ece337:FIFO"
 
     synth:
         depend:

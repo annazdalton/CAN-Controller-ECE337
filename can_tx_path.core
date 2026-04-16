@@ -7,8 +7,10 @@ filesets:
         files:
             - "source/can_tx_path.sv"
         file_type: systemVerilogSource
-        # depend:
-        #     - "fusesoc:core:name"
+        depend:
+            -  "u337mg005:ece337:data_frame_fsm:1.0.0"
+            -  "u337mg005:ece337:bit_stuff:1.0.0"
+            -  "u337mg005:ece337:arbitration:1.0.0"
 
     synth:
         depend:

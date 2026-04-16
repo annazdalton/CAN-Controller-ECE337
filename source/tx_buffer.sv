@@ -1,6 +1,7 @@
 `timescale 1ns / 10ps
 
 module tx_buffer #(
+    parameter DEPTH = 4,
     parameter ID_W = 11,
     parameter DLC_W = 4,
     parameter DATA_W = 64
@@ -19,22 +20,40 @@ module tx_buffer #(
     output logic [DATA_W-1:0] data_out
 );
 
-    always_ff @(posedge clk, negedge n_rst) begin
-        if (!n_rst) begin
-            valid <= 1'b0;
-            id_out <= '0;
-            dlc_out <= '0;
-            data_out <= '0;
-        end else begin
-            if (wr_en) begin
-                valid <= 1'b1;
-                id_out <= wr_id;
-                dlc_out <= wr_dlc;
-                data_out <= wr_data;
-            end else if (clr_valid) begin
-                valid <= 1'b0;
-            end
-        end
-    end
+    localparam int FIFO_W = ID_W + DLC_W + DATA_W;
+
+    logic fifo_wen;
+    logic fifo_ren;
+    logic fifo_full;
+    logic fifo_empty;
+    logic [FIFO_W-1:0] fifo_wdata;
+    logic [FIFO_W-1:0] fifo_rdata;
+
+    assign fifo_wen = wr_en && !fifo_full;
+    assign fifo_ren = clr_valid && !fifo_empty;
+
+    assign fifo_wdata = {wr_id, wr_dlc, wr_data};
+    assign {id_out, dlc_out, data_out} = fifo_rdata;
+    assign valid = !fifo_empty;
+
+    /* verilator lint_off PINCONNECTEMPTY */
+    FIFO #(
+        .SIZE(FIFO_W),
+        .DEPTH(DEPTH)
+    ) u_fifo (
+        .clk(clk),
+        .n_rst(n_rst),
+        .WEN(fifo_wen),
+        .REN(fifo_ren),
+        .clear(1'b0),
+        .wdata(fifo_wdata),
+        .full(fifo_full),
+        .empty(fifo_empty),
+        .underrun(),
+        .overrun(),
+        .count(),
+        .rdata(fifo_rdata)
+    );
+    /* verilator lint_on PINCONNECTEMPTY */
 
 endmodule

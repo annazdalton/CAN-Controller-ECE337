@@ -22,60 +22,35 @@ module rx_buffer #(
     output logic [$clog2(DEPTH+1)-1:0] count
 );
 
-    localparam PTR_W = (DEPTH <= 2) ? 1 : $clog2(DEPTH);
+    localparam int FIFO_W = ID_W + DLC_W + DATA_W;
 
-    logic [ID_W-1:0] id_mem [0:DEPTH-1];
-    logic [DLC_W-1:0] dlc_mem [0:DEPTH-1];
-    logic [DATA_W-1:0] data_mem [0:DEPTH-1];
+    logic fifo_wen;
+    logic fifo_ren;
+    logic [FIFO_W-1:0] fifo_wdata;
+    logic [FIFO_W-1:0] fifo_rdata;
 
-    logic [PTR_W-1:0] wr_ptr;
-    logic [PTR_W-1:0] rd_ptr;
+    assign fifo_wen = push && !full;
+    assign fifo_ren = pop && !empty;
 
-    logic do_push;
-    logic do_pop;
+    assign fifo_wdata = {push_id, push_dlc, push_data};
+    assign {head_id, head_dlc, head_data} = fifo_rdata;
 
-    assign empty = (count == '0);
-    assign full = (count == DEPTH[$clog2(DEPTH+1)-1:0]);
-
-    assign do_push = push && !full;
-    assign do_pop = pop && !empty;
-
-    assign head_id = id_mem[rd_ptr];
-    assign head_dlc = dlc_mem[rd_ptr];
-    assign head_data = data_mem[rd_ptr];
-
-    always_ff @(posedge clk, negedge n_rst) begin
-        if (!n_rst) begin
-            wr_ptr <= '0;
-            rd_ptr <= '0;
-            count <= '0;
-        end else begin
-            if (do_push) begin
-                id_mem[wr_ptr] <= push_id;
-                dlc_mem[wr_ptr] <= push_dlc;
-                data_mem[wr_ptr] <= push_data;
-
-                if (wr_ptr == PTR_W'(DEPTH - 1)) begin
-                    wr_ptr <= '0;
-                end else begin
-                    wr_ptr <= wr_ptr + 1'b1;
-                end
-            end
-
-            if (do_pop) begin
-                if (rd_ptr == PTR_W'(DEPTH - 1)) begin
-                    rd_ptr <= '0;
-                end else begin
-                    rd_ptr <= rd_ptr + 1'b1;
-                end
-            end
-
-            case ({do_push, do_pop})
-                2'b10: count <= count + 1'b1;
-                2'b01: count <= count - 1'b1;
-                default: count <= count;
-            endcase
-        end
-    end
+    FIFO #(
+        .SIZE(FIFO_W),
+        .DEPTH(DEPTH)
+    ) u_fifo (
+        .clk(clk),
+        .n_rst(n_rst),
+        .WEN(fifo_wen),
+        .REN(fifo_ren),
+        .clear(1'b0),
+        .wdata(fifo_wdata),
+        .full(full),
+        .empty(empty),
+        .underrun(),
+        .overrun(),
+        .count(count),
+        .rdata(fifo_rdata)
+    );
 
 endmodule
