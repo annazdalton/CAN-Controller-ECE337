@@ -32,7 +32,6 @@ module host_interface #(
     logic [DATA_W-1:0] next_host_rdata;
     logic next_host_wr_ack;
     logic next_host_rd_ack;
-    logic [DATA_W-1:0] next_reg_wdata;
 
     always_comb begin
         next_host_rdata = host_rdata;
@@ -40,13 +39,13 @@ module host_interface #(
         next_host_rd_ack = 1'b0;
         reg_wr_en = 1'b0;
         reg_rd_en = 1'b0;
-        next_reg_wdata = reg_wdata;
+        reg_wdata = host_wdata;
         reg_addr = host_addr;
 
         if (host_wr_req) begin
             reg_wr_en = 1'b1;
             reg_rd_en = 1'b0;
-            next_reg_wdata = host_wdata;
+            reg_wdata = host_wdata;
             reg_addr = host_addr;
 
             if (wr_accept) begin
@@ -69,12 +68,10 @@ module host_interface #(
             host_rdata <= '0;
             host_wr_ack <= 1'b0;
             host_rd_ack <= 1'b0;
-            reg_wdata <= '0;
         end else begin
             host_rdata <= next_host_rdata;
             host_wr_ack <= next_host_wr_ack;
             host_rd_ack <= next_host_rd_ack;
-            reg_wdata <= next_reg_wdata;
         end
     end
 

@@ -43,18 +43,19 @@ module register_bank #(
     logic [DATA_W-1:0] next_bit_timing_reg;
     logic [DATA_W-1:0] next_filter_reg;
     logic [IRQ_W-1:0] next_irq_enable_reg;
-    logic [DATA_W-1:0] next_reg_rdata;
+    // logic [DATA_W-1:0] next_reg_rdata;
 
     always_comb begin
         next_mode_reg = mode_cfg;
         next_bit_timing_reg = bit_timing_cfg;
         next_filter_reg = filter_cfg;
         next_irq_enable_reg = irq_enable_reg;
-        next_reg_rdata = reg_rdata;
+        // next_reg_rdata = reg_rdata;
 
         wr_accept = 1'b0;
         rd_valid = 1'b0;
         irq_clear = '0;
+        reg_rdata = '0; // change
 
         if (reg_wr_en) begin
             case (reg_addr)
@@ -86,31 +87,31 @@ module register_bank #(
         end else if (reg_rd_en) begin
             case (reg_addr)
                 MODE_ADDR: begin
-                    next_reg_rdata = mode_cfg;
+                    reg_rdata = mode_cfg;
                 end
 
                 BIT_TIMING_ADDR: begin
-                    next_reg_rdata = bit_timing_cfg;
+                    reg_rdata = bit_timing_cfg;
                 end
 
                 FILTER_ADDR: begin
-                    next_reg_rdata = filter_cfg;
+                    reg_rdata = filter_cfg;
                 end
 
                 IRQ_ENABLE_ADDR: begin
-                    next_reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_enable_reg};
+                    reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_enable_reg};
                 end
 
                 IRQ_STATUS_ADDR: begin
-                    next_reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_status};
+                    reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_status};
                 end
 
                 IRQ_CLEAR_ADDR: begin
-                    next_reg_rdata = '0;
+                    reg_rdata = '0;
                 end
 
                 default: begin
-                    next_reg_rdata = '0;
+                    reg_rdata = '0;
                 end
             endcase
 
@@ -124,13 +125,13 @@ module register_bank #(
             bit_timing_cfg <= '0;
             filter_cfg <= '0;
             irq_enable_reg <= '0;
-            reg_rdata <= '0;
+            // reg_rdata <= '0;
         end else begin
             mode_cfg <= next_mode_reg;
             bit_timing_cfg <= next_bit_timing_reg;
             filter_cfg <= next_filter_reg;
             irq_enable_reg <= next_irq_enable_reg;
-            reg_rdata <= next_reg_rdata;
+            // reg_rdata <= next_reg_rdata;
         end
     end
 
