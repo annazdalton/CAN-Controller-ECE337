@@ -2,7 +2,16 @@
 
 module CAN_fsm (
     input logic clk, n_rst,
-    input logic tx_request, bus_idle, node_off, data_done, error_idle, tx_bit, arb_field_done, eof_done, bus_bit, 
+    input logic tx_request, 
+    input logic bus_idle, 
+    input logic node_off, 
+    input logic data_done, 
+    input logic error_done, 
+    input logic tx_bit, 
+    input logic arb_field_done, 
+    input logic eof_done, 
+    input logic bus_bit, 
+    input logic error_request, 
 
     output logic sof_en, arb_en, crc_rst, data_en, ack_en, ack_delim_en, eof_en, error
 );
@@ -78,7 +87,9 @@ always_comb begin
             count_clear = 1'b0;
             count_en = 1'b0;
 
-            if(tx_bit & !bus_bit) begin
+            if(error_request) begin
+                next_state = ERROR;
+            end else if(tx_bit & !bus_bit) begin
                 next_state = ERROR;
             end else begin
                 next_state = ARB;
@@ -97,7 +108,7 @@ always_comb begin
             count_en = 1'b0;
             count_clear = 1'b0;
 
-            if(tx_bit & !bus_bit) begin
+            if(error_request) begin
                 next_state = ERROR;
             end else if (arb_field_done) begin
                 next_state = DATA;
@@ -118,7 +129,9 @@ always_comb begin
             count_en = 1'b0;
             count_clear = 1'b0;
 
-            if(data_done) begin
+            if(error_request) begin
+                next_state = ERROR;
+            end else if(data_done) begin
                 next_state = ACK;
             end else begin
                 next_state = DATA;
@@ -136,8 +149,12 @@ always_comb begin
 
             count_en = 1'b0;
             count_clear = 1'b0;
-
-            next_state = ACK_DELIM;
+             
+            if(error_request) begin
+                next_state = ERROR;
+            end else begin
+                next_state = ACK_DELIM;
+            end
         end
         ACK_DELIM: begin
             sof_en = 1'b0;
@@ -152,7 +169,11 @@ always_comb begin
             count_en = 1'b0;
             count_clear = 1'b0;
 
-            next_state = EOF;
+            if(error_request) begin
+                next_state = ERROR;
+            end else begin
+                next_state = EOF;
+            end
         end
         EOF: begin
             sof_en = 1'b0;
@@ -167,7 +188,9 @@ always_comb begin
             count_en = 1'b0;
             count_clear = 1'b0;
 
-            if(eof_done) begin
+            if(error_request) begin
+                next_state = ERROR;
+            end else if(eof_done) begin
                 next_state = IFS;
             end else begin
                 next_state = EOF;
@@ -205,7 +228,7 @@ always_comb begin
             count_en = 1'b0;
             count_clear = 1'b0;
 
-            if(error_idle) begin
+            if(error_done) begin
                 next_state = IDLE;
             end else begin
                 next_state = ERROR;

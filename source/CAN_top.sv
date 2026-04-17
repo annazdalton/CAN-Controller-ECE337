@@ -67,6 +67,40 @@ module CAN_top #(
     logic [63:0] rx_push_data;
     logic rx_en;
 
+    logic tx_wr_en;
+    logic tx_wr_id [10:0];
+    logic tx_wr_dlc [3:0];
+    logic tx_wr_data [63:0];
+    logic tx_request;
+    logic rx_pop;
+
+    logic error_passive;
+    logic error_active;
+    logic bus_off;
+    logic bus_off_tec_rec;
+    logic recovery_done;
+    logic arb_active;
+    logic is_transmitter;
+    logic is_receiver;
+
+    logic data_done;
+    logic error_idle;
+    logic eof_done;
+    logic sof_en;
+    logic arb_en;
+    logic crc_rst;
+    logic data_en;
+    logic ack_en;
+    logic ack_delim_en;
+    logic eof_en;
+
+    //error signals
+    logic rx_crc_err, rx_stf_err, rx_error_flag;
+    logic proto_error_req; //protocol fsm error input
+    logic send_error_frame; 
+    logic error_done;
+
+    assign proto_error_req = rx_stf_err | rx_crc_err | rx_error_flag;
     assign bus_idle = bus_rx && !tx_en;
 
     tx_buffer u_tx_buffer (
@@ -128,7 +162,7 @@ module CAN_top #(
         .error (error_flag),
         .error_passive(error_passive),
         .error_active (error_active),
-        .error_done() //connect this later
+        .error_done(error_done)
     );
 
     can_rx_path u_can_rx_path (
@@ -145,9 +179,9 @@ module CAN_top #(
         .rx_push_dlc(rx_push_dlc),
         .rx_push_data(rx_push_data),
         .rx_ready(rx_ready),
-        .crc_err(crc_err),
-        .stf_err(stf_err),
-        .error_flag(error_flag)
+        .crc_err(rx_crc_err),
+        .stf_err(rx_stf_err),
+        .error_flag(rx_error_flag)
     );
 
     rx_buffer #(
@@ -175,11 +209,12 @@ module CAN_top #(
         .bus_idle(bus_idle),
         .node_off(arb_lost), //check this idk if this is right
         .data_done(data_done), 
-        .error_idle(error_idle), 
+        .error_done(error_done), 
         .tx_bit(tx_bit), 
         .arb_field_done(~arb_active), //maybe change this to a pulse when done
         .eof_done(eof_done), 
         .bus_bit(bus_rx), 
+        .error_request(proto_error_req).
 
         .sof_en(sof_en), 
         .arb_en(arb_en), 
