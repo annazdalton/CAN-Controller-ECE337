@@ -121,7 +121,7 @@ case(state)
 
         if(error && error_passive) begin
             next_state = ERR_LOAD_PASSIVE;
-        end if (error && error_active) begin
+        end else if (error && error_active) begin
             next_state = ERR_LOAD_ACTIVE;
         end else begin
             next_state = IDLE;
@@ -147,8 +147,8 @@ case(state)
         pas_shift_en = 1'b0;
         act_shift_en = 1'b0;
 
-        pas_par_load_en = 1'b0;
-        act_par_load_en = 1'b1;
+        pas_par_load_en = 1'b1;
+        act_par_load_en = 1'b0;
 
         act_count_clear = 1'b0;
         pas_count_clear = 1'b0;

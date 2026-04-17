@@ -16,6 +16,12 @@ module can_tx_path #(
     input logic [63:0] tx_buf_data,
     input logic tx_request,
 
+    //ports for error frame fsm
+    input  logic error,
+    input  logic error_passive,
+    input  logic error_active,
+    output logic error_done
+
     output logic can_tx,
     output logic tx_en,
     output logic tx_complete,
@@ -87,8 +93,31 @@ module can_tx_path #(
     assign bs_in_bit = frame_bits_reg[stuff_src_idx];
     assign bs_enable = (state == TX_STUFF) && ({1'b0, stuff_src_idx} < stuff_len_reg);
 
-    assign
-        arb_tx_bit = ((state == TX_SEND) && (tx_idx < stuffed_len)) ? stuffed_bits[tx_idx] : 1'b1;
+    assign arb_tx_bit = ((state == TX_SEND) && (tx_idx < stuffed_len)) ? stuffed_bits[tx_idx] : 1'b1;
+
+    logic error_serial_out;
+    logic error_frame_done;
+    logic error_active_sig, error_passive_sig;
+
+    always_comb begin
+    if (!error_frame_done) begin
+        // error frame has priority
+        can_tx = error_serial_out;
+    end else if ((state == TX_SEND) && (tx_idx < stuffed_len)) begin
+        can_tx = stuffed_bits[tx_idx];
+    end else begin
+        can_tx = 1'b1; //default
+    end
+end
+    error_frame_fsm u_error_frame_fsm (
+        .clk (clk),
+        .n_rst (n_rst),
+        .error (error),
+        .error_passive(error_passive),
+        .error_active (error_active),
+        .serial_out (error_serial_out),
+        .error_done (error_frame_done)
+    );
 
     data_frame_fsm u_data_frame_fsm (
         .clk(clk),
@@ -221,7 +250,7 @@ module can_tx_path #(
             TX_SEND: begin
                 next_tx_en = 1'b1;
 
-                if (bit_tick) begin
+                if (bit_tick && error_frame_done) begin
                     if (arb_lost_det) begin
                         next_state = TX_IDLE;
                         next_tx_en = 1'b0;
