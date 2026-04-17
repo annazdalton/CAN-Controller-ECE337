@@ -33,13 +33,7 @@ module irq_status_control #(
             next_irq_status[2] = 1'b1;
         end
 
-        next_irq_status = next_irq_status & ~irq_clear;
-
-        if (|(next_irq_status & irq_enable_reg)) begin
-            next_irq = 1'b1;
-        end else begin
-            next_irq = 1'b0;
-        end
+        next_irq_status = |(next_irq_status & irq_enable_reg);
     end
 
     always_ff @(posedge clk, negedge n_rst) begin

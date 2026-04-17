@@ -45,16 +45,18 @@ module register_bank #(
     logic [IRQ_W-1:0] next_irq_enable_reg;
     // logic [DATA_W-1:0] next_reg_rdata;
 
+    logic [IRQ_W-1:0] irq_clear_reg;
+    logic [IRQ_W-1:0] next_irq_clear;
+
     always_comb begin
         next_mode_reg = mode_cfg;
         next_bit_timing_reg = bit_timing_cfg;
         next_filter_reg = filter_cfg;
         next_irq_enable_reg = irq_enable_reg;
-        // next_reg_rdata = reg_rdata;
+        irq_clear_reg = irq_clear;
 
         wr_accept = 1'b0;
         rd_valid = 1'b0;
-        irq_clear = '0;
         reg_rdata = '0; // change
 
         if (reg_wr_en) begin
@@ -76,7 +78,7 @@ module register_bank #(
                 end
 
                 IRQ_CLEAR_ADDR: begin
-                    irq_clear = reg_wdata[IRQ_W-1:0];
+                    irq_clear_reg  = reg_wdata[IRQ_W-1:0];
                 end
 
                 default: begin
@@ -125,13 +127,13 @@ module register_bank #(
             bit_timing_cfg <= '0;
             filter_cfg <= '0;
             irq_enable_reg <= '0;
-            // reg_rdata <= '0;
+            irq_clear <= '0;
         end else begin
             mode_cfg <= next_mode_reg;
             bit_timing_cfg <= next_bit_timing_reg;
             filter_cfg <= next_filter_reg;
             irq_enable_reg <= next_irq_enable_reg;
-            // reg_rdata <= next_reg_rdata;
+            irq_clear <= irq_clear_reg;
         end
     end
 
