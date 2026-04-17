@@ -27,10 +27,13 @@ module register_bank #(
     output logic [IRQ_W-1:0] irq_enable_reg,
     output logic [IRQ_W-1:0] irq_clear,
 
-    // // To other modules
-    // output logic [DATA_W-1:0] mode_cfg,
-    // output logic [DATA_W-1:0] bit_timing_cfg,
-    // output logic [DATA_W-1:0] filter_cfg
+    // To bit timing
+    output logic bt_enable,
+    output logic [9:0] bt_brp,
+    output logic [5:0] bt_tq_per_bit,
+    output logic [5:0] bt_sample_tq,
+    output logic [5:0] bt_sjw,
+    output logic bt_fd,
 
     //for transmit datapath
     output logic [10:0] tx_id_cfg,
@@ -41,29 +44,33 @@ module register_bank #(
 
     // New RX ports
     output logic rx_pop_pulse
-);
-    localparam logic [ADDR_W-1:0] MODE_ADDR = 5'd0;
-    localparam logic [ADDR_W-1:0] BIT_TIMING_ADDR = 5'd1;
-    localparam logic [ADDR_W-1:0] FILTER_ADDR = 5'd2;
-    localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 5'd3;
-    localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 5'd4;
-    localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 5'd5;
+);  
 
-    // tx registers
-    localparam logic [ADDR_W-1:0] TX_ID_ADDR = 5'd6; // [7:0] of ID
-    localparam logic [ADDR_W-1:0] TX_ID_HIGH_ADDR = 5'd7; // [10:8] of ID
-    localparam logic [ADDR_W-1:0] TX_DLC_ADDR = 5'd8; // [3:0] DLC
-    localparam logic [ADDR_W-1:0] TX_DATA0_ADDR = 5'd9; // data[7:0]
-    localparam logic [ADDR_W-1:0] TX_DATA1_ADDR = 5'd10; // data[15:8]
-    localparam logic [ADDR_W-1:0] TX_DATA2_ADDR = 5'd11; // data[23:16]
-    localparam logic [ADDR_W-1:0] TX_DATA3_ADDR = 5'd12; // data[31:24]
-    localparam logic [ADDR_W-1:0] TX_DATA4_ADDR = 5'd13; // data[39:32]
-    localparam logic [ADDR_W-1:0] TX_DATA5_ADDR = 5'd14; // data[47:40]
+    localparam logic [ADDR_W-1:0] MODE_ADDR = 5'd0;  // bit[0]=bt_enable
+    localparam logic [ADDR_W-1:0] BT_BRP_LO_ADDR = 5'd1;  // brp[7:0]
+    localparam logic [ADDR_W-1:0] BT_BRP_HI_ADDR = 5'd2;  // {6'b0, brp[9:8]}
+    localparam logic [ADDR_W-1:0] BT_TQPB_ADDR = 5'd3;  // {2'b0, tq_per_bit}
+    localparam logic [ADDR_W-1:0] BT_SAMPLE_ADDR = 5'd4;  // {2'b0, sample_tq}
+    localparam logic [ADDR_W-1:0] BT_SJW_ADDR = 5'd5;  // {2'b0, sjw}
+    localparam logic [ADDR_W-1:0] BT_FD_ADDR = 5'd6;  // {7'b0, fd}
+    localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 5'd7;
+    localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 5'd8;
+    localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 5'd9;
+    localparam logic [ADDR_W-1:0] TX_ID_ADDR = 5'd10; // [7:0] of ID
+    localparam logic [ADDR_W-1:0] TX_ID_HIGH_ADDR = 5'd11; // [10:8] of ID
+    localparam logic [ADDR_W-1:0] TX_DLC_ADDR = 5'd12; // [3:0] DLC
+    localparam logic [ADDR_W-1:0] TX_DATA0_ADDR = 5'd13; // data[7:0]
+    localparam logic [ADDR_W-1:0] TX_DATA1_ADDR = 5'd14; // data[15:8]
+    localparam logic [ADDR_W-1:0] TX_DATA2_ADDR = 5'd15; // data[23:16]
+    localparam logic [ADDR_W-1:0] TX_DATA3_ADDR = 5'd16; // data[31:24]
+    localparam logic [ADDR_W-1:0] TX_DATA4_ADDR = 5'd17; // data[39:32]
+    localparam logic [ADDR_W-1:0] TX_DATA5_ADDR = 5'd18; // data[47:40]
 
-    localparam logic [ADDR_W-1:0] TX_DATA6_ADDR = 5'h10  //data[55:48]
-    localparam logic [ADDR_W-1:0] TX_DATA7_ADDR  = 5'h11  //data[63:56]
-    localparam logic [ADDR_W-1:0] TX_CTRL_ADDR= 5'h12  //bit[0] = tx_request, bit[1] = tx_wr_en pulse
-    localparam logic [ADDR_W-1:0] RX_POP_ADDR = 5'h13  //write any value to pop RX FIFO
+    localparam logic [ADDR_W-1:0] TX_DATA6_ADDR = 5'h19;  //data[55:48]
+    localparam logic [ADDR_W-1:0] TX_DATA7_ADDR  = 5'h20;  //data[63:56]
+    localparam logic [ADDR_W-1:0] TX_CTRL_ADDR= 5'h21;  //bit[0] = tx_request, bit[1] = tx_wr_en pulse
+    localparam logic [ADDR_W-1:0] RX_POP_ADDR = 5'h22;  //write any value to pop RX FIFO
+
 
     logic [10:0] next_tx_id_cfg;
     logic [3:0] next_tx_dlc_cfg;
@@ -72,31 +79,41 @@ module register_bank #(
     logic next_tx_wr_en_pulse;
     logic next_rx_pop_pulse;
 
-    logic [DATA_W-1:0] next_mode_reg;
-    logic [DATA_W-1:0] next_bit_timing_reg;
-    logic [DATA_W-1:0] next_filter_reg;
     logic [IRQ_W-1:0] next_irq_enable_reg;
     // logic [DATA_W-1:0] next_reg_rdata;
 
     logic [IRQ_W-1:0] irq_clear_reg;
     logic [IRQ_W-1:0] next_irq_clear;
 
+    logic [7:0] mode_reg, next_mode_reg;
+    logic [9:0] brp_reg, next_brp_reg;
+    logic [5:0] tqpb_reg, next_tqpb_reg;
+    logic [5:0] sample_reg, next_sample_reg;
+    logic [5:0] sjw_reg, next_sjw_reg;
+    logic fd_reg, next_fd_reg;
+
+    // Decode mode register to output ports
+    assign bt_enable   = mode_reg[0];
+    assign loopback_en = mode_reg[1];
+    assign listen_only = mode_reg[2];
+
+    assign bt_brp = brp_reg;
+    assign bt_tq_per_bit = tqpb_reg;
+    assign bt_sample_tq = sample_reg;
+    assign bt_sjw = sjw_reg;
+    assign bt_fd = fd_reg;
+
     //iqr status addr is read only
     logic valid_wr_addr;
 
     always_comb begin
-        next_mode_reg = mode_cfg;
-        next_bit_timing_reg = bit_timing_cfg;
-        next_filter_reg = filter_cfg;
+        next_brp_reg = brp_reg;
+        next_tqpb_reg = tqpb_reg;
+        next_sample_reg = sample_reg;
+        next_sjw_reg = sjw_reg;
+        next_fd_reg = fd_reg;
         next_irq_enable_reg = irq_enable_reg;
-        irq_clear_reg = irq_clear;
-
-        valid_wr_addr = 1'b1;
-
-        wr_accept = 1'b0;
-        rd_valid = 1'b0;
-        reg_rdata = '0; // change
-
+        next_irq_clear = '0;
         next_tx_id_cfg = tx_id_cfg;
         next_tx_dlc_cfg = tx_dlc_cfg;
         next_tx_data_cfg = tx_data_cfg;
@@ -104,85 +121,55 @@ module register_bank #(
         next_tx_wr_en_pulse = 1'b0;
         next_rx_pop_pulse = 1'b0;
 
-        assign wr_accept = valid_wr_addr;
+        wr_accept = 1'b0;
+        rd_valid  = 1'b0;
+        reg_rdata = '0;
 
         if (reg_wr_en) begin
             case (reg_addr)
-                MODE_ADDR: begin
-                    next_mode_reg = reg_wdata;
-                end
-
-                BIT_TIMING_ADDR: begin
-                    next_bit_timing_reg = reg_wdata;
-                end
-
-                FILTER_ADDR: begin
-                    next_filter_reg = reg_wdata;
-                end
-
-                IRQ_ENABLE_ADDR: begin
-                    next_irq_enable_reg = reg_wdata[IRQ_W-1:0];
-                end
-
-                IRQ_STATUS_ADDR : begin
-                    valid_wr_addr = 1'b0;
-                end
-
-                IRQ_CLEAR_ADDR: begin
-                    irq_clear_reg  = reg_wdata[IRQ_W-1:0];
-                end
-
+                MODE_ADDR: begin next_mode_reg = reg_wdata; end
+                BT_BRP_LO_ADDR: begin next_brp_reg[7:0] = reg_wdata; end
+                BT_BRP_HI_ADDR: begin next_brp_reg[9:8] = reg_wdata[1:0]; end
+                BT_TQPB_ADDR: begin next_tqpb_reg = reg_wdata[5:0]; end
+                BT_SAMPLE_ADDR: begin next_sample_reg = reg_wdata[5:0]; end
+                BT_SJW_ADDR: begin next_sjw_reg = reg_wdata[5:0]; end
+                BT_FD_ADDR: begin next_fd_reg = reg_wdata[0]; end
+                IRQ_ENABLE_ADDR: begin next_irq_enable_reg = reg_wdata[IRQ_W-1:0]; end
+                IRQ_STATUS_ADDR: begin end  // read-only: explicit no-op
+                IRQ_CLEAR_ADDR: begin next_irq_clear = reg_wdata[IRQ_W-1:0]; end
                 TX_ID_ADDR: begin next_tx_id_cfg[7:0] = reg_wdata; end
                 TX_ID_HIGH_ADDR: begin next_tx_id_cfg[10:8] = reg_wdata[2:0]; end
                 TX_DLC_ADDR: begin next_tx_dlc_cfg = reg_wdata[3:0]; end
                 TX_DATA0_ADDR: begin next_tx_data_cfg[7:0] = reg_wdata; end
-                TX_DATA1_ADDR: begin next_tx_data_cfg[15:8] = reg_wdata; end
-                TX_DATA2_ADDR: begin next_tx_data_cfg[23:16] = reg_wdata; end
+                TX_DATA1_ADDR: begin next_tx_data_cfg[15:8] = reg_wdata; end 
+                TX_DATA2_ADDR: begin next_tx_data_cfg[23:16] = reg_wdata; end 
                 TX_DATA3_ADDR: begin next_tx_data_cfg[31:24] = reg_wdata; end
-                TX_DATA4_ADDR: begin next_tx_data_cfg[39:32] = reg_wdata; end
+                TX_DATA4_ADDR: begin next_tx_data_cfg[39:32] = reg_wdata; end 
                 TX_DATA5_ADDR: begin next_tx_data_cfg[47:40] = reg_wdata; end 
-                TX_DATA6_ADDR: begin next_tx_data_cfg[55:48] = reg_wdata; end
+                TX_DATA6_ADDR: begin next_tx_data_cfg[55:48] = reg_wdata; end 
                 TX_DATA7_ADDR: begin next_tx_data_cfg[63:56] = reg_wdata; end 
-
                 TX_CTRL_ADDR: begin
                     next_tx_request = reg_wdata[0];
-                    next_tx_wr_en_pulse = reg_wdata[1]; // single cycle pulse
+                    next_tx_wr_en_pulse = reg_wdata[1];
                 end
-            
-                RX_POP_ADDR: begin
-                    next_rx_pop_pulse = 1'b1;
-                end
+                RX_POP_ADDR: next_rx_pop_pulse = 1'b1;
 
                 default: begin
-                    valid_wr_addr = 1'b1;
                 end
             endcase
+            wr_accept = (reg_addr != IRQ_STATUS_ADDR);
         end else if (reg_rd_en) begin
             case (reg_addr)
-                MODE_ADDR: begin
-                    reg_rdata = mode_cfg;
-                end
-
-                BIT_TIMING_ADDR: begin
-                    reg_rdata = bit_timing_cfg;
-                end
-
-                FILTER_ADDR: begin
-                    reg_rdata = filter_cfg;
-                end
-
-                IRQ_ENABLE_ADDR: begin
-                    reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_enable_reg};
-                end
-
-                IRQ_STATUS_ADDR: begin
-                    reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_status};
-                end
-
-                IRQ_CLEAR_ADDR: begin
-                    reg_rdata = '0;
-                end
-
+                MODE_ADDR: begin reg_rdata = mode_reg; end
+                BT_BRP_LO_ADDR: begin reg_rdata = brp_reg[7:0]; end
+                BT_BRP_HI_ADDR: begin reg_rdata = {{6{1'b0}}, brp_reg[9:8]}; end
+                BT_TQPB_ADDR: begin reg_rdata = {{2{1'b0}}, tqpb_reg}; end
+                BT_SAMPLE_ADDR: begin reg_rdata = {{2{1'b0}}, sample_reg}; end 
+                BT_SJW_ADDR: begin reg_rdata = {{2{1'b0}}, sjw_reg}; end 
+                BT_FD_ADDR: begin reg_rdata = {{7{1'b0}}, fd_reg}; end 
+                IRQ_ENABLE_ADDR: begin reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_enable_reg}; end
+                IRQ_STATUS_ADDR: begin reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_status}; end
+                IRQ_CLEAR_ADDR: begin reg_rdata = '0; end 
                 TX_ID_ADDR: begin reg_rdata = tx_id_cfg[7:0]; end
                 TX_ID_HIGH_ADDR: begin reg_rdata = {{5{1'b0}}, tx_id_cfg[10:8]}; end
                 TX_DLC_ADDR: begin reg_rdata = {{(DATA_W-4){1'b0}}, tx_dlc_cfg}; end
@@ -207,9 +194,11 @@ module register_bank #(
 
     always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
-            mode_cfg <= '0;
-            bit_timing_cfg <= '0;
-            filter_cfg <= '0;
+            brp_reg <= '0;
+            tqpb_reg <= '0;
+            sample_reg <= '0;
+            sjw_reg <= '0;
+            fd_reg <= '0;
             irq_enable_reg <= '0;
             irq_clear <= '0;
             //tx registers
@@ -220,9 +209,11 @@ module register_bank #(
             tx_wr_en_pulse <= '0;
             rx_pop_pulse <= '0;
         end else begin
-            mode_cfg <= next_mode_reg;
-            bit_timing_cfg <= next_bit_timing_reg;
-            filter_cfg <= next_filter_reg;
+            brp_reg <= next_brp_reg;
+            tqpb_reg <= next_tqpb_reg;
+            sample_reg <= next_sample_reg;
+            sjw_reg <= next_sjw_reg;
+            fd_reg <= next_fd_reg;
             irq_enable_reg <= next_irq_enable_reg;
             irq_clear <= irq_clear_reg;
             //tx request

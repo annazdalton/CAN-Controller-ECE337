@@ -13,6 +13,9 @@ filesets:
             - "u337mg005:ece337:can_tx_path:1.0.0"
             - "u337mg005:ece337:can_rx_path:1.0.0"
             - "u337mg005:ece337:rx_buffer:1.0.0"
+            - "u337mg005:ece337:CAN_fsm:1.0.0"
+            - "u337mg005:ece337:host_cfg_top:1.0.0"
+            - "u337mg005:ece337:CAN_error_counters:1.0.0"
 
     synth:
         depend:

@@ -11,6 +11,7 @@ filesets:
             -  "u337mg005:ece337:data_frame_fsm:1.0.0"
             -  "u337mg005:ece337:bit_stuff:1.0.0"
             -  "u337mg005:ece337:arbitration:1.0.0"
+            - "u337mg005:ece337:error_frame_fsm:1.0.0"
 
     synth:
         depend:

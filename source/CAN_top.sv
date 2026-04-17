@@ -67,9 +67,9 @@ module CAN_top #(
     logic rx_en;
 
     logic tx_wr_en;
-    logic tx_wr_id [10:0];
-    logic tx_wr_dlc [3:0];
-    logic tx_wr_data [63:0];
+    logic [10:0] tx_wr_id;
+    logic [3:0] tx_wr_dlc ;
+    logic [63:0] tx_wr_data;
     logic tx_request;
     logic rx_pop;
 
@@ -206,14 +206,14 @@ module CAN_top #(
         .n_rst(n_rst),
         .tx_request(tx_request), 
         .bus_idle(bus_idle),
-        .node_off(arb_lost), //check this idk if this is right
+        .node_off(bus_off),
         .data_done(data_done), 
         .error_done(error_done), 
         .tx_bit(tx_bit), 
         .arb_field_done(~arb_active), //maybe change this to a pulse when done
         .eof_done(eof_done), 
         .bus_bit(bus_rx), 
-        .error_request(proto_error_req).
+        .error_request(proto_error_req),
 
         .sof_en(sof_en), 
         .arb_en(arb_en), 
@@ -269,6 +269,13 @@ module CAN_top #(
         .tx_wr_en_pulse (tx_wr_en),
         .tx_request (tx_request),
         .rx_pop_pulse (rx_pop), 
-        .irq(irq)
+        .irq(irq),
+
+        .bt_enable (bt_enable),
+        .bt_brp (bt_brp),
+        .bt_tq_per_bit(bt_tq_per_bit),
+        .bt_sample_tq (bt_sample_tq),
+        .bt_sjw (bt_sjw),
+        .bt_fd (bt_fd)
     );
 endmodule
