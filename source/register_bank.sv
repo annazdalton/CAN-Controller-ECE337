@@ -27,10 +27,10 @@ module register_bank #(
     output logic [IRQ_W-1:0] irq_enable_reg,
     output logic [IRQ_W-1:0] irq_clear,
 
-    // To other modules
-    output logic [DATA_W-1:0] mode_cfg,
-    output logic [DATA_W-1:0] bit_timing_cfg,
-    output logic [DATA_W-1:0] filter_cfg
+    // // To other modules
+    // output logic [DATA_W-1:0] mode_cfg,
+    // output logic [DATA_W-1:0] bit_timing_cfg,
+    // output logic [DATA_W-1:0] filter_cfg
 
     //for transmit datapath
     output logic [10:0] tx_id_cfg,

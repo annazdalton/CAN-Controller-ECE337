@@ -7,13 +7,6 @@ module CAN_top #(
     input logic n_rst,
 
     input logic bus_rx,
-    input logic tx_request,
-    input logic tx_wr_en,
-    input logic [10:0] tx_wr_id,
-    input logic [3:0] tx_wr_dlc,
-    input logic [63:0] tx_wr_data,
-
-    input logic rx_pop,
 
     input logic bt_enable,
     input logic [9:0] bt_brp,
@@ -21,6 +14,12 @@ module CAN_top #(
     input logic [5:0] bt_sample_tq,
     input logic [5:0] bt_sjw,
     input logic bt_fd,
+
+    //ports for host interface
+    input  logic host_wr_req,
+    input  logic host_rd_req,
+    input  logic [7:0]  host_wdata,
+    input  logic [4:0]  host_addr,
 
     output logic tx_bit,
     output logic tx_buf_valid,
@@ -37,7 +36,13 @@ module CAN_top #(
     output logic rx_ready,
     output logic crc_err,
     output logic stf_err,
-    output logic error_flag
+    output logic error_flag,
+
+    //ports for host interface
+    output logic [7:0]  host_rdata,
+    output logic host_wr_ack,
+    output logic host_rd_ack,
+    output logic irq
 );
 
     logic bit_tick;
@@ -119,7 +124,7 @@ module CAN_top #(
         .arb_lost(arb_lost),
         .msg_due_tx(msg_due_tx),
         .tx_buf_clr(tx_buf_clr),
-        .listen_after_arb(listen_after_arb)
+        .listen_after_arb(listen_after_arb),
         .error (error_flag),
         .error_passive(error_passive),
         .error_active (error_active),
@@ -163,63 +168,92 @@ module CAN_top #(
         .count(rx_count)
     );
 
-    CAN_fsm protocol_fsm(
-    .clk(clk), 
-    .n_rst(n_rst),
-    .tx_request(tx_request), 
-    .bus_idle(bus_idle), .
-    .node_off(arb_lost), //check this idk if this is right
-    .data_done(data_done), 
-    .error_idle(error_idle), 
-    .tx_bit(tx_bit), 
-    .arb_field_done(~arb_active), //maybe change this to a pulse when done
-    .eof_done(eof_done), 
-    .bus_bit(bus_rx), 
+    CAN_fsm protocol_fsm (
+        .clk(clk), 
+        .n_rst(n_rst),
+        .tx_request(tx_request), 
+        .bus_idle(bus_idle),
+        .node_off(arb_lost), //check this idk if this is right
+        .data_done(data_done), 
+        .error_idle(error_idle), 
+        .tx_bit(tx_bit), 
+        .arb_field_done(~arb_active), //maybe change this to a pulse when done
+        .eof_done(eof_done), 
+        .bus_bit(bus_rx), 
 
-    .sof_en(sof_en), 
-    .arb_en(arb_en), 
-    .crc_rst(crc_rst), 
-    .data_en(data_en), 
-    .ack_en(ack_en), 
-    .ack_delim_en(ack_delim_en), 
-    .eof_en(eof_en), 
-    .error(error_flag)
-);
+        .sof_en(sof_en), 
+        .arb_en(arb_en), 
+        .crc_rst(crc_rst), 
+        .data_en(data_en), 
+        .ack_en(ack_en), 
+        .ack_delim_en(ack_delim_en), 
+        .eof_en(eof_en), 
+        .error(error_flag)
+    );
 
-CAN_error_counters tec_rec(
-    .clk(clk), 
-    .n_rst(n_rst),
+    CAN_error_counters tec_rec(
+        .clk(clk), 
+        .n_rst(n_rst),
 
-    .tx_error(), 
-    .tx_success(), 
-    .rx_error(),
-    .rx_success(),
+        .tx_error(), 
+        .tx_success(), 
+        .rx_error(),
+        .rx_success(),
 
-    .bus_rx(bus_rx),
-    .bus_off_i(bus_off),
+        .bus_rx(bus_rx),
+        .bus_off_i(bus_off),
 
-    .error_active(error_active), 
-    .error_passive(error_passive),
-    .bus_off(bus_off_tec_rec),
-    .recovery_done(recovery_done)
-);
+        .error_active(error_active), 
+        .error_passive(error_passive),
+        .bus_off(bus_off_tec_rec),
+        .recovery_done(recovery_done)
+    );
 
-arbitration arb (
-    .clk(clk), 
-    .n_rst(n_rst),
-    .bus_rx(bus_rx), 
-    .tx_request(tx_request),
-    .tx_id(tx_wr_id),
-    .tx_bit(tx_bit), 
-    .recovery_done(recovery_done),
-    .bus_off_req(bus_off_tec_rec),
+    arbitration arb (
+        .clk(clk), 
+        .n_rst(n_rst),
+        .bus_rx(bus_rx), 
+        .tx_request(tx_request),
+        .tx_id(tx_wr_id),
+        .tx_bit(tx_bit), 
+        .recovery_done(recovery_done),
+        .bus_off_req(bus_off_tec_rec),
 
-    .is_transmitter(is_transmitter),
-    .is_receiver(is_receiver),
-    .arb_lost(arb_lost), 
-    .bus_off_o(bus_off),
-    .bus_idle(bus_idle), 
-    .arb_active(arb_active)
-);
+        .is_transmitter(is_transmitter),
+        .is_receiver(is_receiver),
+        .arb_lost(arb_lost), 
+        .bus_off_o(bus_off),
+        .bus_idle(bus_idle), 
+        .arb_active(arb_active)
+    );
 
+
+    host_cfg_top #(
+        .DATA_W(8),
+        .ADDR_W(5),
+        .IRQ_W (3)
+    ) host_cfg (
+        .clk (clk),
+        .n_rst (n_rst),
+
+        .host_wr_req (host_wr_req),
+        .host_rd_req (host_rd_req),
+        .host_wdata (host_wdata),
+        .host_addr (host_addr),
+        .host_rdata (host_rdata),
+        .host_wr_ack (host_wr_ack),
+        .host_rd_ack (host_rd_ack),
+
+        .evt_rx_ready (rx_ready),
+        .evt_tx_complete (tx_complete),
+        .evt_error(error_flag),
+
+        .tx_id_cfg (tx_wr_id), 
+        .tx_dlc_cfg (tx_wr_dlc),
+        .tx_data_cfg (tx_wr_data), 
+        .tx_wr_en_pulse (tx_wr_en),
+        .tx_request (tx_request),
+        .rx_pop_pulse (rx_pop), 
+        .irq(irq)
+    );
 endmodule
