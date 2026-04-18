@@ -14,6 +14,7 @@ module rx_frame_fsm #(
     output logic [7:0] payload_len,
     output logic [7:0] frame_len,
     output logic payload_done,
+    output logic fd,
     output logic done,
     output logic crc_error,
     output logic format_error,
@@ -26,6 +27,7 @@ module rx_frame_fsm #(
     logic [6:0] data_bits;
     logic [7:0] crc_start_idx;
     logic [14:0] recv_crc;
+    logic frame_fdf;
 
     logic crc_calc_start;
     logic crc_calc_busy;
@@ -58,6 +60,7 @@ module rx_frame_fsm #(
             payload_len <= 8'd0;
             frame_len <= 8'd0;
             payload_done <= 1'b0;
+            fd <= 1'b0;
             done <= 1'b0;
             crc_error <= 1'b0;
             format_error <= 1'b0;
@@ -65,6 +68,7 @@ module rx_frame_fsm #(
             frame_dlc <= 4'd0;
             frame_data <= 64'd0;
             recv_crc <= 15'd0;
+            frame_fdf <= 1'b0;
             crc_calc_start <= 1'b0;
             crc_calc_busy <= 1'b0;
         end else begin
@@ -79,10 +83,12 @@ module rx_frame_fsm #(
                 frame_len <= 8'd0;
                 crc_error <= 1'b0;
                 format_error <= 1'b0;
+                fd <= 1'b0;
                 frame_id <= 11'd0;
                 frame_dlc <= 4'd0;
                 frame_data <= 64'd0;
                 recv_crc <= 15'd0;
+                frame_fdf <= 1'b0;
                 crc_calc_busy <= 1'b0;
             end else if (crc_calc_busy) begin
                 if (crc_calc_done) begin
@@ -90,6 +96,7 @@ module rx_frame_fsm #(
                     if (recv_crc != crc_calc_out) begin
                         crc_error <= 1'b1;
                     end
+                    fd <= 1'b0;
                     payload_len_valid <= 1'b0;
                     crc_calc_busy <= 1'b0;
                 end
@@ -106,11 +113,13 @@ module rx_frame_fsm #(
                 if (bit_count == 8'd9) frame_id[1] <= bit_in;
                 if (bit_count == 8'd10) frame_id[0] <= bit_in;
 
-                if ((bit_count == 8'd11) || (bit_count == 8'd12) || (bit_count == 8'd13)) begin
+                if ((bit_count == 8'd11) || (bit_count == 8'd12)) begin
                     if (bit_in != 1'b0) begin
                         format_error <= 1'b1;
                     end
                 end
+
+                if (bit_count == 8'd13) frame_fdf <= bit_in;
 
                 if (bit_count == 8'd14) frame_dlc[3] <= bit_in;
                 if (bit_count == 8'd15) frame_dlc[2] <= bit_in;
@@ -124,6 +133,7 @@ module rx_frame_fsm #(
                     if ({frame_dlc[3:1], bit_in} > 4'd8) begin
                         format_error <= 1'b1;
                     end
+                    fd <= frame_fdf;
                 end
 
                 if (payload_len_valid && (bit_count >= 8'd18) && (bit_count < crc_start_idx)) begin
@@ -136,6 +146,7 @@ module rx_frame_fsm #(
 
                 if (payload_len_valid && (bit_count == (payload_len - 1'b1))) begin
                     payload_done <= 1'b1;
+                    fd <= 1'b0;
                 end
 
                 if (payload_len_valid && (bit_count == (crc_start_idx + 8'd15))) begin

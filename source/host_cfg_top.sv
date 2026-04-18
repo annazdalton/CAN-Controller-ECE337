@@ -36,7 +36,6 @@ module host_cfg_top #(
     output logic [5:0] bt_tq_per_bit,
     output logic [5:0] bt_sample_tq,
     output logic [5:0] bt_sjw,
-    output logic bt_fd,
 
     //rx datapath outputs
     output logic rx_pop_pulse,
@@ -104,7 +103,6 @@ register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
     .bt_tq_per_bit(bt_tq_per_bit),
     .bt_sample_tq (bt_sample_tq),
     .bt_sjw (bt_sjw),
-    .bt_fd (bt_fd)
 );
 
 irq_status_control #(.IRQ_W(IRQ_W)) top_irq_sc (

@@ -41,6 +41,7 @@ module CAN_top #(
     logic sample_tick;
     logic hard_sync_pulse;
     logic sampled_bit;
+    logic rx_fd;
 
     logic tx_en;
     logic msg_due_tx;
@@ -89,7 +90,7 @@ module CAN_top #(
     //error signals
     logic rx_crc_err, rx_stf_err, rx_error_flag;
     logic proto_error_req; //protocol fsm error input
-    logic send_error_frame; 
+    logic send_error_frame;
     logic error_done;
     logic tx_error;
 
@@ -123,7 +124,7 @@ module CAN_top #(
         .tq_per_bit(bt_tq_per_bit),
         .sample_tq(bt_sample_tq),
         .sjw(bt_sjw),
-        .fd(bt_fd),
+        .fd(rx_fd),
         .can_rx(bus_rx),
         .tq_tick(),
         .sample_tick(sample_tick),
@@ -169,6 +170,7 @@ module CAN_top #(
         .tx_en(tx_en),
         .rx_buf_full(rx_buf_full),
         .rx_en(rx_en),
+        .fd(rx_fd),
         .rx_push(rx_push),
         .rx_push_id(rx_push_id),
         .rx_push_dlc(rx_push_dlc),
@@ -198,43 +200,43 @@ module CAN_top #(
     );
 
     CAN_fsm protocol_fsm (
-        .clk(clk), 
+        .clk(clk),
         .n_rst(n_rst),
-        .tx_request(tx_request), 
+        .tx_request(tx_request),
         .bus_idle(bus_idle),
         .node_off(bus_off),
-        .data_done(data_done), 
-        .error_done(error_done), 
-        .tx_bit(tx_bit), 
+        .data_done(data_done),
+        .error_done(error_done),
+        .tx_bit(tx_bit),
         .arb_field_done(~arb_active), //maybe change this to a pulse when done
-        .eof_done(eof_done), 
-        .bus_bit(bus_rx), 
+        .eof_done(eof_done),
+        .bus_bit(bus_rx),
         .error_request(proto_error_req),
 
-        .sof_en(sof_en), 
-        .arb_en(arb_en), 
-        .crc_rst(crc_rst), 
-        .data_en(data_en), 
-        .ack_en(ack_en), 
-        .ack_delim_en(ack_delim_en), 
-        .eof_en(eof_en), 
+        .sof_en(sof_en),
+        .arb_en(arb_en),
+        .crc_rst(crc_rst),
+        .data_en(data_en),
+        .ack_en(ack_en),
+        .ack_delim_en(ack_delim_en),
+        .eof_en(eof_en),
         .error(send_error_frame)
     );
 
     CAN_error_counters tec_rec(
-        .clk(clk), 
+        .clk(clk),
         .n_rst(n_rst),
 
-        //this might be wrong, maybe try changing error singals to pulse 
-        .tx_error(tx_error), 
-        .tx_success(tx_complete), 
+        //this might be wrong, maybe try changing error singals to pulse
+        .tx_error(tx_error),
+        .tx_success(tx_complete),
         .rx_error(proto_error_req),
         .rx_success(rx_ready),
 
         .bus_rx(bus_rx),
         .bus_off_i(bus_off),
 
-        .error_active(error_active), 
+        .error_active(error_active),
         .error_passive(error_passive),
         .bus_off(bus_off_tec_rec),
         .recovery_done(recovery_done)
@@ -260,12 +262,12 @@ module CAN_top #(
         .evt_tx_complete (tx_complete),
         .evt_error(error_flag),
 
-        .tx_id_cfg (tx_wr_id), 
+        .tx_id_cfg (tx_wr_id),
         .tx_dlc_cfg (tx_wr_dlc),
-        .tx_data_cfg (tx_wr_data), 
+        .tx_data_cfg (tx_wr_data),
         .tx_wr_en_pulse (tx_wr_en),
         .tx_request (tx_request),
-        .rx_pop_pulse (rx_pop), 
+        .rx_pop_pulse (rx_pop),
         .irq(irq),
 
         .bt_enable (bt_enable),
@@ -273,6 +275,5 @@ module CAN_top #(
         .bt_tq_per_bit(bt_tq_per_bit),
         .bt_sample_tq (bt_sample_tq),
         .bt_sjw (bt_sjw),
-        .bt_fd (bt_fd)
     );
 endmodule

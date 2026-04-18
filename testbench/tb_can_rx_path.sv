@@ -38,6 +38,7 @@ module tb_can_rx_path;
     logic listen_after_arb;
 
     logic rx_en;
+    logic fd;
     logic rx_push;
     logic [10:0] rx_push_id;
     logic [3:0] rx_push_dlc;
@@ -131,6 +132,7 @@ module tb_can_rx_path;
         .tx_en(1'b0),
         .rx_buf_full(rx_full),
         .rx_en(rx_en),
+        .fd(fd),
         .rx_push(rx_push),
         .rx_push_id(rx_push_id),
         .rx_push_dlc(rx_push_dlc),

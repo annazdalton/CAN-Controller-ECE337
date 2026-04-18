@@ -33,7 +33,6 @@ module register_bank #(
     output logic [5:0] bt_tq_per_bit,
     output logic [5:0] bt_sample_tq,
     output logic [5:0] bt_sjw,
-    output logic bt_fd,
 
     //for transmit datapath
     output logic [10:0] tx_id_cfg,
@@ -52,7 +51,6 @@ module register_bank #(
     localparam logic [ADDR_W-1:0] BT_TQPB_ADDR = 5'd3;  // {2'b0, tq_per_bit}
     localparam logic [ADDR_W-1:0] BT_SAMPLE_ADDR = 5'd4;  // {2'b0, sample_tq}
     localparam logic [ADDR_W-1:0] BT_SJW_ADDR = 5'd5;  // {2'b0, sjw}
-    localparam logic [ADDR_W-1:0] BT_FD_ADDR = 5'd6;  // {7'b0, fd}
     localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 5'd7;
     localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 5'd8;
     localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 5'd9;
@@ -90,7 +88,6 @@ module register_bank #(
     logic [5:0] tqpb_reg, next_tqpb_reg;
     logic [5:0] sample_reg, next_sample_reg;
     logic [5:0] sjw_reg, next_sjw_reg;
-    logic fd_reg, next_fd_reg;
 
     // Decode mode register to output ports
     assign bt_enable   = mode_reg[0];
@@ -101,7 +98,6 @@ module register_bank #(
     assign bt_tq_per_bit = tqpb_reg;
     assign bt_sample_tq = sample_reg;
     assign bt_sjw = sjw_reg;
-    assign bt_fd = fd_reg;
 
     //iqr status addr is read only
     logic valid_wr_addr;
@@ -111,7 +107,6 @@ module register_bank #(
         next_tqpb_reg = tqpb_reg;
         next_sample_reg = sample_reg;
         next_sjw_reg = sjw_reg;
-        next_fd_reg = fd_reg;
         next_irq_enable_reg = irq_enable_reg;
         next_irq_clear = '0;
         next_tx_id_cfg = tx_id_cfg;
@@ -133,7 +128,6 @@ module register_bank #(
                 BT_TQPB_ADDR: begin next_tqpb_reg = reg_wdata[5:0]; end
                 BT_SAMPLE_ADDR: begin next_sample_reg = reg_wdata[5:0]; end
                 BT_SJW_ADDR: begin next_sjw_reg = reg_wdata[5:0]; end
-                BT_FD_ADDR: begin next_fd_reg = reg_wdata[0]; end
                 IRQ_ENABLE_ADDR: begin next_irq_enable_reg = reg_wdata[IRQ_W-1:0]; end
                 IRQ_STATUS_ADDR: begin end  // read-only: explicit no-op
                 IRQ_CLEAR_ADDR: begin next_irq_clear = reg_wdata[IRQ_W-1:0]; end
@@ -166,7 +160,6 @@ module register_bank #(
                 BT_TQPB_ADDR: begin reg_rdata = {{2{1'b0}}, tqpb_reg}; end
                 BT_SAMPLE_ADDR: begin reg_rdata = {{2{1'b0}}, sample_reg}; end 
                 BT_SJW_ADDR: begin reg_rdata = {{2{1'b0}}, sjw_reg}; end 
-                BT_FD_ADDR: begin reg_rdata = {{7{1'b0}}, fd_reg}; end 
                 IRQ_ENABLE_ADDR: begin reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_enable_reg}; end
                 IRQ_STATUS_ADDR: begin reg_rdata = {{(DATA_W-IRQ_W){1'b0}}, irq_status}; end
                 IRQ_CLEAR_ADDR: begin reg_rdata = '0; end 
@@ -198,7 +191,6 @@ module register_bank #(
             tqpb_reg <= '0;
             sample_reg <= '0;
             sjw_reg <= '0;
-            fd_reg <= '0;
             irq_enable_reg <= '0;
             irq_clear <= '0;
             //tx registers
@@ -213,7 +205,6 @@ module register_bank #(
             tqpb_reg <= next_tqpb_reg;
             sample_reg <= next_sample_reg;
             sjw_reg <= next_sjw_reg;
-            fd_reg <= next_fd_reg;
             irq_enable_reg <= next_irq_enable_reg;
             irq_clear <= irq_clear_reg;
             //tx request

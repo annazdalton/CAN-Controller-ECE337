@@ -12,6 +12,7 @@ module can_rx_path #(
     input logic rx_buf_full,
 
     output logic rx_en,
+    output logic fd,
     output logic rx_push,
     output logic [10:0] rx_push_id,
     output logic [3:0] rx_push_dlc,
@@ -42,6 +43,7 @@ module can_rx_path #(
     logic parser_crc_error;
     logic parser_format_error;
     logic parser_payload_done;
+    logic parser_fd;
     logic parser_payload_len_valid;
     logic [7:0] parser_payload_len;
     logic [7:0] parser_frame_len;
@@ -62,6 +64,7 @@ module can_rx_path #(
     logic next_pending_disable;
 
     logic next_rx_en;
+    logic next_fd;
     logic next_rx_push;
     logic [10:0] next_rx_push_id;
     logic [3:0] next_rx_push_dlc;
@@ -94,6 +97,7 @@ module can_rx_path #(
         .payload_len(parser_payload_len),
         .frame_len(parser_frame_len),
         .payload_done(parser_payload_done),
+        .fd(parser_fd),
         .done(parser_done),
         .crc_error(parser_crc_error),
         .format_error(parser_format_error),
@@ -115,6 +119,7 @@ module can_rx_path #(
         next_pending_disable = pending_disable;
 
         next_rx_en = rx_en;
+        next_fd = fd;
         next_rx_push = 1'b0;
         next_rx_push_id = rx_push_id;
         next_rx_push_dlc = rx_push_dlc;
@@ -127,6 +132,7 @@ module can_rx_path #(
         case (state)
             RX_IDLE: begin
                 next_rx_en = 1'b0;
+                next_fd = 1'b0;
                 next_destuff_enable = 1'b0;
                 next_stuff_have_last = 1'b0;
                 next_stuff_last_bit = 1'b0;
@@ -144,6 +150,7 @@ module can_rx_path #(
 
             RX_ACTIVE: begin
                 next_rx_en = 1'b1;
+                next_fd = parser_fd;
 
                 if (sample_tick && destuff_enable) begin
                     if (stuff_expect) begin
@@ -187,6 +194,7 @@ module can_rx_path #(
                 if (parser_done) begin
                     next_state = RX_IDLE;
                     next_rx_en = 1'b0;
+                    next_fd = 1'b0;
 
                     if (parser_format_error) begin
                         next_error_flag = 1'b1;
@@ -207,6 +215,7 @@ module can_rx_path #(
             default: begin
                 next_state = RX_IDLE;
                 next_rx_en = 1'b0;
+                next_fd = 1'b0;
             end
         endcase
     end
@@ -221,6 +230,7 @@ module can_rx_path #(
             stuff_expect <= 1'b0;
             pending_disable <= 1'b0;
             rx_en <= 1'b0;
+            fd <= 1'b0;
             rx_push <= 1'b0;
             rx_push_id <= 11'd0;
             rx_push_dlc <= 4'd0;
@@ -238,6 +248,7 @@ module can_rx_path #(
             stuff_expect <= next_stuff_expect;
             pending_disable <= next_pending_disable;
             rx_en <= next_rx_en;
+            fd <= next_fd;
             rx_push <= next_rx_push;
             rx_push_id <= next_rx_push_id;
             rx_push_dlc <= next_rx_push_dlc;
