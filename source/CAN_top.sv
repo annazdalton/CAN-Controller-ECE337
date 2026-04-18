@@ -91,9 +91,12 @@ module CAN_top #(
     logic proto_error_req; //protocol fsm error input
     logic send_error_frame; 
     logic error_done;
+    logic tx_error;
 
     assign proto_error_req = rx_stf_err | rx_crc_err | rx_error_flag;
     assign bus_idle = bus_rx && !tx_en;
+    assign tx_error = tx_bit != bus_rx;
+
 
     tx_buffer u_tx_buffer (
         .clk(clk),
@@ -222,10 +225,11 @@ module CAN_top #(
         .clk(clk), 
         .n_rst(n_rst),
 
-        .tx_error(), 
-        .tx_success(), 
-        .rx_error(),
-        .rx_success(),
+        //this might be wrong, maybe try changing error singals to pulse 
+        .tx_error(tx_error), 
+        .tx_success(tx_complete), 
+        .rx_error(proto_error_req),
+        .rx_success(rx_ready),
 
         .bus_rx(bus_rx),
         .bus_off_i(bus_off),
