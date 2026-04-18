@@ -193,8 +193,7 @@ module can_rx_path #(
                     end else begin
                         if (parser_crc_error) begin
                             next_crc_err = 1'b1;
-                        end
-                        if (!rx_buf_full) begin
+                        end else if (!rx_buf_full) begin
                             next_rx_push = 1'b1;
                             next_rx_push_id = parser_id;
                             next_rx_push_dlc = parser_dlc;
