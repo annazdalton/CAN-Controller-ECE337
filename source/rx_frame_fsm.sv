@@ -22,28 +22,34 @@ module rx_frame_fsm #(
     output logic [63:0] frame_data
 );
 
-    localparam logic [14:0] CRC_POLY = 15'b100010110011001;
-
     logic [7:0] bit_count;
     logic [6:0] data_bits;
     logic [7:0] crc_start_idx;
-    logic [14:0] calc_crc;
     logic [14:0] recv_crc;
 
-    logic crc_feedback;
-    logic [14:0] calc_crc_next;
+    logic crc_calc_start;
+    logic crc_calc_busy;
+    logic crc_calc_done;
+    logic [14:0] crc_calc_out;
 
     assign data_bits = {frame_dlc, 3'b000};
     assign crc_start_idx = 8'd18 + {1'b0, data_bits};
-    assign busy = (bit_count != 8'd0) || payload_len_valid;
+    assign busy = (bit_count != 8'd0) || payload_len_valid || crc_calc_busy;
 
-    always_comb begin
-        crc_feedback = calc_crc[14] ^ bit_in;
-        calc_crc_next = {calc_crc[13:0], 1'b0};
-        if (crc_feedback) begin
-            calc_crc_next = calc_crc_next ^ CRC_POLY;
-        end
-    end
+    CRC_generator u_crc_generator (
+        .clk(clk),
+        .n_rst(n_rst),
+        .start(crc_calc_start),
+        .sof_bit(1'b0),
+        .identifier(frame_id),
+        .rtr_bit(1'b0),
+        .ide_bit(1'b0),
+        .r0_bit(1'b0),
+        .dlc(frame_dlc),
+        .data(frame_data),
+        .done(crc_calc_done),
+        .crc_out(crc_calc_out)
+    );
 
     always_ff @(posedge clk, negedge n_rst) begin
         if (!n_rst) begin
@@ -58,11 +64,13 @@ module rx_frame_fsm #(
             frame_id <= 11'd0;
             frame_dlc <= 4'd0;
             frame_data <= 64'd0;
-            calc_crc <= 15'd0;
             recv_crc <= 15'd0;
+            crc_calc_start <= 1'b0;
+            crc_calc_busy <= 1'b0;
         end else begin
             payload_done <= 1'b0;
             done <= 1'b0;
+            crc_calc_start <= 1'b0;
 
             if (start) begin
                 bit_count <= 8'd0;
@@ -74,13 +82,18 @@ module rx_frame_fsm #(
                 frame_id <= 11'd0;
                 frame_dlc <= 4'd0;
                 frame_data <= 64'd0;
-                calc_crc <= 15'd0;
                 recv_crc <= 15'd0;
-            end else if (bit_valid) begin
-                if (bit_count < crc_start_idx) begin
-                    calc_crc <= calc_crc_next;
+                crc_calc_busy <= 1'b0;
+            end else if (crc_calc_busy) begin
+                if (crc_calc_done) begin
+                    done <= 1'b1;
+                    if (recv_crc != crc_calc_out) begin
+                        crc_error <= 1'b1;
+                    end
+                    payload_len_valid <= 1'b0;
+                    crc_calc_busy <= 1'b0;
                 end
-
+            end else if (bit_valid) begin
                 if (bit_count == 8'd0) frame_id[10] <= bit_in;
                 if (bit_count == 8'd1) frame_id[9] <= bit_in;
                 if (bit_count == 8'd2) frame_id[8] <= bit_in;
@@ -144,12 +157,9 @@ module rx_frame_fsm #(
                 end
 
                 if (payload_len_valid && (bit_count == (frame_len - 1'b1))) begin
-                    done <= 1'b1;
-                    if (recv_crc != calc_crc) begin
-                        crc_error <= 1'b1;
-                    end
+                    crc_calc_busy <= 1'b1;
+                    crc_calc_start <= 1'b1;
                     bit_count <= 8'd0;
-                    payload_len_valid <= 1'b0;
                 end else begin
                     bit_count <= bit_count + 1'b1;
                 end

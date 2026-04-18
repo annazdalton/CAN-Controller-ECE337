@@ -7,8 +7,8 @@ filesets:
         files:
             - "source/rx_frame_fsm.sv"
         file_type: systemVerilogSource
-        # depend:
-        #     - "fusesoc:core:name"
+        depend:
+            - "u337mg005:ece337:CRC_generator:1.0.0"
 
     synth:
         depend:
