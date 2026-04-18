@@ -8,18 +8,11 @@ module CAN_top #(
 
     input logic bus_rx,
 
-    input logic bt_enable,
-    input logic [9:0] bt_brp,
-    input logic [5:0] bt_tq_per_bit,
-    input logic [5:0] bt_sample_tq,
-    input logic [5:0] bt_sjw,
-    input logic bt_fd,
-
     //ports for host interface
-    input  logic host_wr_req,
-    input  logic host_rd_req,
-    input  logic [7:0]  host_wdata,
-    input  logic [4:0]  host_addr,
+    input logic host_wr_req,
+    input logic host_rd_req,
+    input logic [7:0] host_wdata,
+    input logic [4:0] host_addr,
 
     output logic tx_bit,
     output logic tx_buf_valid,
@@ -31,14 +24,14 @@ module CAN_top #(
     output logic [63:0] rx_head_data,
     output logic rx_buf_empty,
     output logic rx_buf_full,
-    output logic [$clog2(4+1)-1:0] rx_count,
+    output logic [3:0] rx_count,
 
     output logic rx_ready,
     output logic crc_err,
     output logic stf_err,
 
     //ports for host interface
-    output logic [7:0]  host_rdata,
+    output logic [7:0] host_rdata,
     output logic host_wr_ack,
     output logic host_rd_ack,
     output logic irq
