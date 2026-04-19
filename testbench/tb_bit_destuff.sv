@@ -39,6 +39,7 @@ module tb_bit_destuff ();
 
     logic out_valid;
     logic out_bit;
+    logic stuff_error;
     logic out_ready;
 
     bit_destuff DUT (
@@ -50,6 +51,7 @@ module tb_bit_destuff ();
         .in_ready(in_ready),
         .out_valid(out_valid),
         .out_bit(out_bit),
+        .stuff_error(stuff_error),
         .out_ready(out_ready)
     );
 
@@ -105,4 +107,3 @@ module tb_bit_destuff ();
 endmodule
 
 /* verilator coverage_on */
-

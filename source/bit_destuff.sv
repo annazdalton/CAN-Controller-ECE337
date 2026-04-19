@@ -12,6 +12,7 @@ module bit_destuff #(
 
     output logic out_valid,
     output logic out_bit,
+    output logic stuff_error,
     input logic out_ready
 );
 
@@ -20,38 +21,36 @@ module bit_destuff #(
     logic cut;
 
     always_comb begin
-        in_ready = 0;
-        out_valid = 0;
         out_bit = in_bit;
 
-        if (destuff_enable) begin
-            in_ready = out_ready;
-            
-            if (cut) begin
-                out_valid = 0;
-            end
-            else begin
-                out_valid = in_valid;
-                out_bit = in_bit;
-            end
-        end
-        else begin
+        if (!destuff_enable) begin
             out_valid = in_valid;
-            out_bit = in_bit;
             in_ready = out_ready;
+        end else begin
+            if (cut) begin
+                // Consume stuffed bit regardless of downstream readiness.
+                out_valid = 1'b0;
+                in_ready = 1'b1;
+            end else begin
+                out_valid = in_valid;
+                in_ready = out_ready;
+            end
         end
     end
 
     logic next_last_bit;
     logic [2:0] next_count;
     logic next_cut;
+    logic next_stuff_error;
 
     always_comb begin
         next_last_bit = last_bit;
         next_count = count;
         next_cut = cut;
+        next_stuff_error = 1'b0;
 
         if (!destuff_enable) begin
+            next_last_bit = 0;
             next_count = 0;
             next_cut = 0;
         end
@@ -61,8 +60,12 @@ module bit_destuff #(
                 // drop bit
                 if (cut) begin
                     next_cut = 0;
-                    next_last_bit = in_bit;
-                    next_count = 1;
+
+                    if (in_bit == last_bit) begin
+                        next_stuff_error = 1'b1;
+                    end
+
+                    next_count = 3'd0;
                 end
                 else begin
                     if (count == 0) begin
@@ -70,10 +73,11 @@ module bit_destuff #(
                         next_count = 1;
                     end
                     else if (in_bit == last_bit) begin
-                        next_count = count + 1;
-
-                        if (count + 1 == 5) begin
+                        if (count == 3'd4) begin
+                            next_count = 3'd5;
                             next_cut = 1;
+                        end else begin
+                            next_count = count + 1'b1;
                         end
                     end
                     else begin
@@ -90,15 +94,16 @@ module bit_destuff #(
             last_bit <= 0;
             count <= 0;
             cut <= 0;
+            stuff_error <= 1'b0;
         end
         else begin
             last_bit <= next_last_bit;
             count <= next_count;
             cut <= next_cut;
+            stuff_error <= next_stuff_error;
         end
     end
 
 
 
 endmodule
-

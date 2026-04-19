@@ -37,6 +37,7 @@ module can_rx_path #(
 
     logic destuff_out_valid;
     logic destuff_out_bit;
+    logic destuff_stuff_error;
 
     logic parser_start;
     logic parser_done;
@@ -83,6 +84,7 @@ module can_rx_path #(
         .in_ready(),
         .out_valid(destuff_out_valid),
         .out_bit(destuff_out_bit),
+        .stuff_error(destuff_stuff_error),
         .out_ready(1'b1)
     );
 
@@ -151,6 +153,11 @@ module can_rx_path #(
             RX_ACTIVE: begin
                 next_rx_en = 1'b1;
                 next_fd = parser_fd;
+
+                if (destuff_stuff_error) begin
+                    next_stf_err = 1'b1;
+                    next_error_flag = 1'b1;
+                end
 
                 if (sample_tick && destuff_enable) begin
                     if (stuff_expect) begin
