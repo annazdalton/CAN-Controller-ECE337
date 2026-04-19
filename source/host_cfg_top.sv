@@ -102,7 +102,7 @@ register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
     .bt_brp (bt_brp),
     .bt_tq_per_bit(bt_tq_per_bit),
     .bt_sample_tq (bt_sample_tq),
-    .bt_sjw (bt_sjw),
+    .bt_sjw (bt_sjw)
 );
 
 irq_status_control #(.IRQ_W(IRQ_W)) top_irq_sc (
@@ -118,4 +118,3 @@ irq_status_control #(.IRQ_W(IRQ_W)) top_irq_sc (
 );
 
 endmodule
-

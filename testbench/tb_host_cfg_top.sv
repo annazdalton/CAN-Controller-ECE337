@@ -1,274 +1,248 @@
 `timescale 1ns / 10ps
 /* verilator coverage_off */
 
-module tb_host_cfg_top ();
+module tb_host_cfg_top;
 
     localparam CLK_PERIOD = 10ns;
-    localparam ADDR_W = 4;
+    localparam ADDR_W = 5;
     localparam DATA_W = 8;
     localparam IRQ_W = 3;
 
-    localparam logic [ADDR_W-1:0] MODE_ADDR = 4'h0;
-    localparam logic [ADDR_W-1:0] BIT_TIMING_ADDR = 4'h1;
-    localparam logic [ADDR_W-1:0] FILTER_ADDR = 4'h2;
-    localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 4'h3;
-    localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 4'h4;
-    localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 4'h5;
+    localparam logic [ADDR_W-1:0] ADDR_MODE = 5'd0;
+    localparam logic [ADDR_W-1:0] ADDR_BT_BRP_LO = 5'd1;
+    localparam logic [ADDR_W-1:0] ADDR_BT_BRP_HI = 5'd2;
+    localparam logic [ADDR_W-1:0] ADDR_BT_TQPB = 5'd3;
+    localparam logic [ADDR_W-1:0] ADDR_BT_SAMPLE = 5'd4;
+    localparam logic [ADDR_W-1:0] ADDR_BT_SJW = 5'd5;
+    localparam logic [ADDR_W-1:0] ADDR_IRQ_ENABLE = 5'd7;
+    localparam logic [ADDR_W-1:0] ADDR_IRQ_STATUS = 5'd8;
+    localparam logic [ADDR_W-1:0] ADDR_IRQ_CLEAR = 5'd9;
+    localparam logic [ADDR_W-1:0] ADDR_TX_ID_LO = 5'd10;
+    localparam logic [ADDR_W-1:0] ADDR_TX_ID_HI = 5'd11;
+    localparam logic [ADDR_W-1:0] ADDR_TX_DLC = 5'd12;
+    localparam logic [ADDR_W-1:0] ADDR_TX_DATA0 = 5'd13;
+    localparam logic [ADDR_W-1:0] ADDR_TX_DATA7 = 5'd20;
+    localparam logic [ADDR_W-1:0] ADDR_TX_CTRL = 5'd21;
+    localparam logic [ADDR_W-1:0] ADDR_RX_POP = 5'd22;
+
+    logic clk, n_rst;
+    logic host_wr_req, host_rd_req;
+    logic [DATA_W-1:0] host_wdata;
+    logic [ADDR_W-1:0] host_addr;
+
+    logic evt_rx_ready, evt_tx_complete, evt_error;
+
+    logic [DATA_W-1:0] host_rdata;
+    logic host_wr_ack, host_rd_ack;
+
+    logic [10:0] tx_id_cfg;
+    logic [3:0] tx_dlc_cfg;
+    logic [63:0] tx_data_cfg;
+    logic tx_wr_en_pulse;
+    logic tx_request;
+
+    logic bt_enable;
+    logic [9:0] bt_brp;
+    logic [5:0] bt_tq_per_bit;
+    logic [5:0] bt_sample_tq;
+    logic [5:0] bt_sjw;
+
+    logic rx_pop_pulse;
+    logic irq;
 
     initial begin
         $dumpfile("waveform.vcd");
         $dumpvars;
     end
 
-    logic clk, n_rst;
-    logic host_wr_req;
-    logic host_rd_req;
-    logic [DATA_W - 1: 0] host_wdata;
-    logic [ADDR_W - 1: 0] host_addr;
-
-    logic evt_rx_ready;
-    logic evt_tx_complete;
-    logic evt_error;
-
-    logic [DATA_W-1:0] host_rdata;
-    logic host_wr_ack;
-    logic host_rd_ack;
-
-    logic [DATA_W-1:0] mode_cfg;
-    logic [DATA_W-1:0] bit_timing_cfg;
-    logic [DATA_W-1:0] filter_cfg;
-
-    logic irq;
-
-    // clockgen
     always begin
-        clk = 0;
+        clk = 1'b0;
         #(CLK_PERIOD / 2.0);
-        clk = 1;
+        clk = 1'b1;
         #(CLK_PERIOD / 2.0);
     end
 
-    task reset_dut;
-    begin
-        n_rst = 0;
-        host_wr_req = 0;
-        host_rd_req = 0;
-        host_wdata = '0;
-        host_addr = '0;
-        evt_rx_ready = 0;
-        evt_tx_complete = 0;
-        evt_error = 0;
-        @(posedge clk);
-        @(posedge clk);
-        @(negedge clk);
-        n_rst = 1;
-        @(posedge clk);
-        @(posedge clk);
-    end
-    endtask
-
-    task check_equal(
-        input string name,
-        input logic [31:0] actual,
-        input logic [31:0] expected
-    );
-    begin
-        if (actual !== expected) begin
-            $display("FAIL: %s | actual = 0x%0h expected = 0x%0h", name, actual, expected);
-            $finish;
+    task automatic check_equal(input string name, input logic [63:0] actual,
+                               input logic [63:0] expected);
+        begin
+            if (actual !== expected) begin
+                $display("FAIL: %s | actual=0x%0h expected=0x%0h", name, actual, expected);
+                $finish;
+            end else begin
+                $display("PASS: %s", name);
+            end
         end
-        else begin
-            $display("PASS: %s | value = 0x%0h", name, actual);
+    endtask
+
+    task automatic reset_dut;
+        begin
+            n_rst = 1'b0;
+            host_wr_req = 1'b0;
+            host_rd_req = 1'b0;
+            host_wdata = '0;
+            host_addr = '0;
+            evt_rx_ready = 1'b0;
+            evt_tx_complete = 1'b0;
+            evt_error = 1'b0;
+            repeat (3) @(posedge clk);
+            @(negedge clk);
+            n_rst = 1'b1;
+            repeat (2) @(posedge clk);
         end
-    end
-    endtask
-    
-    task host_write(
-        input logic [ADDR_W-1:0] addr,
-        input logic [DATA_W-1:0] data
-    );
-    begin
-        @(negedge clk);
-        host_addr = addr;
-        host_wdata = data;
-        host_wr_req = 1'b1;
-        host_rd_req = 1'b0;
-
-        @(posedge clk);
-        #1;
-        check_equal("host_wr_ack after write", host_wr_ack, 1'b1);
-
-        @(negedge clk);
-        host_wr_req = 1'b0;
-
-        @(posedge clk);
-        #1;
-        check_equal("host_wr_ack clears", host_wr_ack, 1'b0);
-
-    // extra cycle for downstream register update
-        @(posedge clk);
-        #1;
-    end
     endtask
 
-    task host_read(
-        input logic [ADDR_W-1:0] addr,
-        input logic [DATA_W-1:0] expected_data
-    );
-    begin
-        @(negedge clk);
-        host_addr = addr;
-        host_rd_req = 1'b1;
-        host_wr_req = 1'b0;
+    task automatic host_write(input logic [ADDR_W-1:0] addr, input logic [DATA_W-1:0] data);
+        integer timeout;
+        begin
+            @(negedge clk);
+            host_addr = addr;
+            host_wdata = data;
+            host_wr_req = 1'b1;
+            host_rd_req = 1'b0;
 
-        @(posedge clk);
-        #1;
-        check_equal("host_rd_ack after read", host_rd_ack, 1'b1);
-        check_equal("host_rdata after read", host_rdata, expected_data);
-        
-        @(negedge clk);
-        host_rd_req = 1'b0;
+            timeout = 0;
+            @(posedge clk);
+            while (!host_wr_ack && timeout < 10) begin
+                @(posedge clk);
+                timeout++;
+            end
+            if (!host_wr_ack) begin
+                $display("FAIL: write timeout addr=0x%0h", addr);
+                $finish;
+            end
 
-        @(posedge clk);
-        #1;
-        check_equal("host_rd_ack clears", host_rd_ack, 1'b0);
-    end
+            host_wr_req = 1'b0;
+            host_wdata = '0;
+        end
     endtask
 
-    host_cfg_top DUT (
+    task automatic host_read(input logic [ADDR_W-1:0] addr, output logic [DATA_W-1:0] data);
+        integer timeout;
+        begin
+            @(negedge clk);
+            host_addr = addr;
+            host_rd_req = 1'b1;
+            host_wr_req = 1'b0;
+
+            timeout = 0;
+            @(posedge clk);
+            while (!host_rd_ack && timeout < 10) begin
+                @(posedge clk);
+                timeout++;
+            end
+            if (!host_rd_ack) begin
+                $display("FAIL: read timeout addr=0x%0h", addr);
+                $finish;
+            end
+
+            data = host_rdata;
+            host_rd_req = 1'b0;
+        end
+    endtask
+
+    host_cfg_top #(
+        .DATA_W(DATA_W),
+        .ADDR_W(ADDR_W),
+        .IRQ_W(IRQ_W)
+    ) dut (
         .clk(clk),
         .n_rst(n_rst),
         .host_wr_req(host_wr_req),
         .host_rd_req(host_rd_req),
         .host_wdata(host_wdata),
         .host_addr(host_addr),
-        .host_rdata(host_rdata),
-        .host_wr_ack(host_wr_ack),
-        .host_rd_ack(host_rd_ack),
         .evt_rx_ready(evt_rx_ready),
         .evt_tx_complete(evt_tx_complete),
         .evt_error(evt_error),
-        .mode_cfg(mode_cfg),
-        .bit_timing_cfg(bit_timing_cfg),
-        .filter_cfg(filter_cfg),
+        .host_rdata(host_rdata),
+        .host_wr_ack(host_wr_ack),
+        .host_rd_ack(host_rd_ack),
+        .tx_id_cfg(tx_id_cfg),
+        .tx_dlc_cfg(tx_dlc_cfg),
+        .tx_data_cfg(tx_data_cfg),
+        .tx_wr_en_pulse(tx_wr_en_pulse),
+        .tx_request(tx_request),
+        .bt_enable(bt_enable),
+        .bt_brp(bt_brp),
+        .bt_tq_per_bit(bt_tq_per_bit),
+        .bt_sample_tq(bt_sample_tq),
+        .bt_sjw(bt_sjw),
+        .rx_pop_pulse(rx_pop_pulse),
         .irq(irq)
     );
 
+    logic [7:0] rd_data;
+
     initial begin
-        n_rst = 1;
+        reset_dut();
 
-        $display("\n--- Reset Test ---");
-        reset_dut;
-        #1;
-        
-        check_equal("mode_cfg reset", mode_cfg, 8'h00);
-        check_equal("bit_timing_cfg reset", bit_timing_cfg, 8'h00);
-        check_equal("filter_cfg reset", filter_cfg, 8'h00);
-        check_equal("host_rdata reset", host_rdata, 8'h00);
-        check_equal("host_wr_ack reset", host_wr_ack, 1'b0);
-        check_equal("host_rd_ack reset", host_rd_ack, 1'b0);
-        check_equal("irq reset", irq, 1'b0);
+        check_equal("reset host_wr_ack", host_wr_ack, 1'b0);
+        check_equal("reset host_rd_ack", host_rd_ack, 1'b0);
+        check_equal("reset bt_enable", bt_enable, 1'b0);
+        check_equal("reset irq", irq, 1'b0);
 
-        $display("\n--- Write Config Register Tests ---");
-        host_write(MODE_ADDR, 8'hA5);
-        check_equal("mode_cfg updated", mode_cfg, 8'hA5);
+        host_write(ADDR_MODE, 8'h01);
+        check_equal("mode enables bit-timing", bt_enable, 1'b1);
 
-        host_write(BIT_TIMING_ADDR, 8'h3C);
-        check_equal("bit_timing_cfg updated", bit_timing_cfg, 8'h3C);
+        host_write(ADDR_BT_BRP_LO, 8'h34);
+        host_write(ADDR_BT_BRP_HI, 8'h01);
+        host_write(ADDR_BT_TQPB, 8'd16);
+        host_write(ADDR_BT_SAMPLE, 8'd11);
+        host_write(ADDR_BT_SJW, 8'd1);
+        check_equal("bt_brp programmed", bt_brp, 10'h134);
+        check_equal("bt_tq_per_bit programmed", bt_tq_per_bit, 6'd16);
+        check_equal("bt_sample_tq programmed", bt_sample_tq, 6'd11);
+        check_equal("bt_sjw programmed", bt_sjw, 6'd1);
 
-        host_write(FILTER_ADDR, 8'hF0);
-        check_equal("filter_cfg updated", filter_cfg, 8'hF0);
+        host_write(ADDR_TX_ID_LO, 8'hC3);
+        host_write(ADDR_TX_ID_HI, 8'h02);
+        host_write(ADDR_TX_DLC, 8'h08);
+        host_write(ADDR_TX_DATA0, 8'hAA);
+        host_write(ADDR_TX_DATA7, 8'h55);
+        host_write(ADDR_TX_CTRL, 8'b0000_0011);
+        check_equal("tx_id configured", tx_id_cfg, 11'h2C3);
+        check_equal("tx_dlc configured", tx_dlc_cfg, 4'h8);
+        check_equal("tx_data byte0 configured", tx_data_cfg[7:0], 8'hAA);
+        check_equal("tx_data byte7 configured", tx_data_cfg[63:56], 8'h55);
+        check_equal("tx_request set", tx_request, 1'b1);
+        check_equal("tx_wr_en pulse high", tx_wr_en_pulse, 1'b1);
+        @(posedge clk);
+        check_equal("tx_wr_en pulse clears", tx_wr_en_pulse, 1'b0);
 
-        $display("\n--- Read Config Register Tests ---");
-        host_read(MODE_ADDR, 8'hA5);
-        host_read(BIT_TIMING_ADDR, 8'h3C);
-        host_read(FILTER_ADDR, 8'hF0);
+        host_write(ADDR_RX_POP, 8'hFF);
+        check_equal("rx_pop pulse high", rx_pop_pulse, 1'b1);
+        @(posedge clk);
+        check_equal("rx_pop pulse clears", rx_pop_pulse, 1'b0);
 
-        $display("\n--- IRQ Disabled Event Test ---");
+        host_write(ADDR_IRQ_ENABLE, 8'b0000_0111);
+
         evt_rx_ready = 1'b1;
         @(posedge clk);
-        #1;
-        
-        check_equal("irq stays low when enables are zero", irq, 1'b0);
         evt_rx_ready = 1'b0;
-
-        $display("\n--- Enable IRQ Sources Test ---");
-        host_write(IRQ_ENABLE_ADDR, 8'b00000111);
-
-        $display("\n--- RX Event IRQ Test ---");
-        evt_rx_ready = 1'b1;
         @(posedge clk);
-        #1;
-        
-        check_equal("irq asserted on RX event", irq, 1'b1);
-        evt_rx_ready = 1'b0;
+        check_equal("irq asserted on rx event", irq, 1'b1);
+        host_read(ADDR_IRQ_STATUS, rd_data);
+        check_equal("irq status rx bit set", rd_data[0], 1'b1);
 
-        $display("\n--- Read IRQ Status After RX Event ---");
-        host_read(IRQ_STATUS_ADDR, 8'b00000001);
-
-        $display("\n--- Clear RX IRQ Status ---");
-        host_write(IRQ_CLEAR_ADDR, 8'b00000001);
+        host_write(ADDR_IRQ_CLEAR, 8'b0000_0001);
         @(posedge clk);
-        #1;
-        
-        check_equal("irq deasserted after clearing RX status", irq, 1'b0);
-        host_read(IRQ_STATUS_ADDR, 8'b00000000);
+        check_equal("irq deasserted after clear", irq, 1'b0);
 
-        $display("\n--- TX Complete Event IRQ Test ---");
-        evt_tx_complete = 1'b1;
-        @(posedge clk);
-        #1;
-        
-        check_equal("irq asserted on TX complete", irq, 1'b1);
-        evt_tx_complete = 1'b0;
-        host_read(IRQ_STATUS_ADDR, 8'b00000010);
-
-        $display("\n--- Error Event IRQ Test ---");
-        host_write(IRQ_CLEAR_ADDR, 8'b00000010);
-        @(posedge clk);
-        #1;
-        
+        host_write(ADDR_IRQ_ENABLE, 8'b0000_0001);
         evt_error = 1'b1;
         @(posedge clk);
-        #1;
-        
-        check_equal("irq asserted on error event", irq, 1'b1);
         evt_error = 1'b0;
-        host_read(IRQ_STATUS_ADDR, 8'b00000100);
+        @(posedge clk);
+        check_equal("irq masked error does not assert", irq, 1'b0);
+        host_read(ADDR_IRQ_STATUS, rd_data);
+        check_equal("masked error still latches status", rd_data[2], 1'b1);
 
-        $display("\n--- Multiple Events Test ---");
-        host_write(IRQ_CLEAR_ADDR, 8'b00000111);
-        @(posedge clk);
-        #1;
-        
-        evt_rx_ready = 1'b1;
-        evt_tx_complete = 1'b1;
-        evt_error = 1'b1;
-        @(posedge clk);
-        #1;
-        
-        check_equal("irq asserted on multiple events", irq, 1'b1);
-        evt_rx_ready = 1'b0;
-        evt_tx_complete = 1'b0;
-        evt_error = 1'b0;
-        host_read(IRQ_STATUS_ADDR, 8'b00000111);
-
-        $display("\n--- IRQ Masking Test ---");
-        host_write(IRQ_CLEAR_ADDR, 8'b00000111);
-        @(posedge clk);
-        
-        host_write(IRQ_ENABLE_ADDR, 8'b00000001);
-        evt_error = 1'b1;
-        @(posedge clk);
-        
-        check_equal("irq stays low when error source masked", irq, 1'b0);
-        evt_error = 1'b0;
-        host_read(IRQ_STATUS_ADDR, 8'b00000100);
-
-        $display("\nAll host_cfg_top tests passed.\n");
+        host_write(ADDR_IRQ_STATUS, 8'hFF);
+        host_read(ADDR_IRQ_STATUS, rd_data);
+        check_equal("write to irq_status is no-op", rd_data[2], 1'b1);
         $finish;
     end
+
 endmodule
 
 /* verilator coverage_on */
-

@@ -19,7 +19,7 @@ module irq_status_control #(
     logic next_irq;
 
     always_comb begin
-        next_irq_status = irq_status;
+        next_irq_status = irq_status & ~irq_clear;
 
         if (evt_rx_ready) begin
             next_irq_status[0] = 1'b1;
@@ -33,7 +33,7 @@ module irq_status_control #(
             next_irq_status[2] = 1'b1;
         end
 
-        next_irq_status = |(next_irq_status & irq_enable_reg);
+        next_irq = |(next_irq_status & irq_enable_reg);
     end
 
     always_ff @(posedge clk, negedge n_rst) begin
@@ -47,4 +47,3 @@ module irq_status_control #(
     end
 
 endmodule
-

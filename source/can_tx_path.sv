@@ -20,7 +20,7 @@ module can_tx_path #(
     input  logic error,
     input  logic error_passive,
     input  logic error_active,
-    output logic error_done
+    output logic error_done,
 
     output logic can_tx,
     output logic tx_en,

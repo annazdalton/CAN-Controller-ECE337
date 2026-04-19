@@ -67,6 +67,12 @@ module CAN_top #(
     logic tx_request;
     logic rx_pop;
 
+    logic bt_enable;
+    logic [9:0] bt_brp;
+    logic [5:0] bt_tq_per_bit;
+    logic [5:0] bt_sample_tq;
+    logic [5:0] bt_sjw;
+
     logic error_passive;
     logic error_active;
     logic bus_off;
@@ -97,6 +103,9 @@ module CAN_top #(
     assign proto_error_req = rx_stf_err | rx_crc_err | rx_error_flag;
     assign bus_idle = bus_rx && !tx_en;
     assign tx_error = tx_bit != bus_rx;
+    assign bus_off = bus_off_tec_rec;
+    assign crc_err = rx_crc_err;
+    assign stf_err = rx_stf_err;
 
 
     tx_buffer u_tx_buffer (
@@ -260,7 +269,7 @@ module CAN_top #(
 
         .evt_rx_ready (rx_ready),
         .evt_tx_complete (tx_complete),
-        .evt_error(error_flag),
+        .evt_error(proto_error_req),
 
         .tx_id_cfg (tx_wr_id),
         .tx_dlc_cfg (tx_wr_dlc),
@@ -274,6 +283,6 @@ module CAN_top #(
         .bt_brp (bt_brp),
         .bt_tq_per_bit(bt_tq_per_bit),
         .bt_sample_tq (bt_sample_tq),
-        .bt_sjw (bt_sjw),
+        .bt_sjw (bt_sjw)
     );
 endmodule

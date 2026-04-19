@@ -6,17 +6,17 @@ module tx_buffer #(
     parameter DLC_W = 4,
     parameter DATA_W = 64
 ) (
-    input  logic              clk,
-    input  logic              n_rst,
-    input  logic              wr_en,
-    input  logic              clr_valid,
-    input  logic [ID_W-1:0]   wr_id,
-    input  logic [DLC_W-1:0]  wr_dlc,
-    input  logic [DATA_W-1:0] wr_data,
+    input logic clk,
+    input logic n_rst,
+    input logic wr_en,
+    input logic clr_valid,
+    input logic [ID_W-1:0] wr_id,
+    input logic [DLC_W-1:0] wr_dlc,
+    input logic [DATA_W-1:0] wr_data,
 
-    output logic              valid,
-    output logic [ID_W-1:0]   id_out,
-    output logic [DLC_W-1:0]  dlc_out,
+    output logic valid,
+    output logic [ID_W-1:0] id_out,
+    output logic [DLC_W-1:0] dlc_out,
     output logic [DATA_W-1:0] data_out
 );
 
@@ -36,7 +36,6 @@ module tx_buffer #(
     assign {id_out, dlc_out, data_out} = fifo_rdata;
     assign valid = !fifo_empty;
 
-    /* verilator lint_off PINCONNECTEMPTY */
     FIFO #(
         .SIZE(FIFO_W),
         .DEPTH(DEPTH)
@@ -54,6 +53,5 @@ module tx_buffer #(
         .count(),
         .rdata(fifo_rdata)
     );
-    /* verilator lint_on PINCONNECTEMPTY */
 
 endmodule
