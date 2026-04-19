@@ -99,16 +99,6 @@ module can_tx_path #(
     logic error_frame_done;
     logic error_active_sig, error_passive_sig;
 
-    always_comb begin
-    if (!error_frame_done) begin
-        // error frame has priority
-        can_tx = error_serial_out;
-    end else if ((state == TX_SEND) && (tx_idx < stuffed_len)) begin
-        can_tx = stuffed_bits[tx_idx];
-    end else begin
-        can_tx = 1'b1; //default
-    end
-end
     error_frame_fsm u_error_frame_fsm (
         .clk (clk),
         .n_rst (n_rst),
@@ -164,10 +154,14 @@ end
     );
 
     always_comb begin
-        can_tx = 1'b1;
-        if ((state == TX_SEND) && (tx_idx < stuffed_len)) begin
+        if (!error_frame_done) begin
+            // error frame has priority
+            can_tx = error_serial_out;
+        end else if ((state == TX_SEND) && (tx_idx < stuffed_len)) begin
             can_tx = stuffed_bits[tx_idx];
-        end
+        end else begin
+            can_tx = 1'b1; //default
+        end  
     end
 
     always_comb begin
