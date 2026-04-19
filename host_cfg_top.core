@@ -1,5 +1,5 @@
 CAPI=2:
-name: "u337mg078:ece337:host_cfg_top:1.0.0"
+name: "u337mg005:ece337:host_cfg_top:1.0.0"
 description: ""
 
 filesets:
@@ -9,13 +9,13 @@ filesets:
         file_type: systemVerilogSource
         depend:
             - "u337mg005:ece337:host_interface:1.0.0"
-            - "u337mg078:ece337:irq_status_control:1.0.0"
-            - "u337mg078:ece337:register_bank:1.0.0"
+            - "u337mg005:ece337:irq_status_control:1.0.0"
+            - "u337mg005:ece337:register_bank:1.0.0"
 
     synth:
         depend:
             - "ece337:tech:AMI_05_LIB"
-            - "u337mg078:ece337:host_cfg_top_syn"
+            - "u337mg005:ece337:host_cfg_top_syn"
 
     tb:
         files:
@@ -25,14 +25,14 @@ filesets:
             # - "data/file.txt": { file_type: user }
         file_type: systemVerilogSource
         depend:
-            - "u337mg078:ece337:questafiles"
+            - "u337mg005:ece337:questafiles"
 
     synfiles:
         files:
             - "scripts/syn_host_cfg_top.tcl"
         file_type: tclSource
         depend:
-            - "u337mg078:ece337:synfiles"
+            - "u337mg005:ece337:synfiles"
 
 targets:
     default: &default
@@ -88,7 +88,7 @@ targets:
         toplevel: host_cfg_top
         tools:
             design_compiler:
-                script_dir: "src/u337mg078_ece337_synfiles_0"
+                script_dir: "src/u337mg005_ece337_synfiles_0"
                 dc_script: "synth.tcl"
                 report_dir: "reports"
                 target_library: "/home/ecegrid/a/ece337/summer24-refactor/tech/ami05/osu05_stdcells.db"

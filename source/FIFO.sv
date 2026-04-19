@@ -9,7 +9,7 @@ module FIFO #(
     input logic [SIZE - 1:0] wdata,
 
     output logic full, empty, underrun, overrun,
-    output logic [$clog2(DEPTH+1) - 1 :0] count,
+    output logic [3:0] count,
     output logic [SIZE - 1:0] rdata
 );
 

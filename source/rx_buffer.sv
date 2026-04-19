@@ -19,7 +19,7 @@ module rx_buffer #(
     output logic [DATA_W-1:0] head_data,
     output logic empty,
     output logic full,
-    output logic [$clog2(DEPTH+1)-1:0] count
+    output logic [3:0] count
 );
 
     localparam int FIFO_W = ID_W + DLC_W + DATA_W;
