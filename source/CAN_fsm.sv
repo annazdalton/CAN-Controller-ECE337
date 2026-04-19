@@ -68,7 +68,9 @@ always_comb begin
             count_clear = 1'b1;
             count_en = 1'b0;
 
-            if(tx_request & bus_idle & !node_off) begin
+            if(error_request) begin
+                next_state = ERROR;
+            end else if(tx_request & bus_idle & !node_off) begin
                 next_state = SOF;
             end else begin
                 next_state = IDLE;
