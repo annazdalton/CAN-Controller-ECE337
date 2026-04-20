@@ -12,7 +12,7 @@ module CAN_top #(
     input logic host_wr_req,
     input logic host_rd_req,
     input logic [7:0] host_wdata,
-    input logic [4:0] host_addr,
+    input logic [5:0] host_addr,
 
     output logic tx_bit,
     output logic tx_buf_valid,
@@ -253,7 +253,7 @@ module CAN_top #(
 
     host_cfg_top #(
         .DATA_W(8),
-        .ADDR_W(5),
+        .ADDR_W(6),
         .IRQ_W (3)
     ) host_cfg (
         .clk (clk),
@@ -283,6 +283,13 @@ module CAN_top #(
         .bt_brp (bt_brp),
         .bt_tq_per_bit(bt_tq_per_bit),
         .bt_sample_tq (bt_sample_tq),
-        .bt_sjw (bt_sjw)
+        .bt_sjw (bt_sjw),
+
+        .rx_head_id (rx_head_id),
+        .rx_head_dlc (rx_head_dlc),
+        .rx_head_data (rx_head_data),
+        .rx_buf_empty (rx_buf_empty),
+        .rx_buf_full (rx_buf_full),
+        .rx_count (rx_count)
     );
 endmodule

@@ -2,13 +2,12 @@
 
 module register_bank #(
     // parameters
-    parameter int ADDR_W = 5,
+    parameter int ADDR_W = 6,
     parameter int DATA_W = 8,
     parameter int IRQ_W = 3
 
 ) (
-    input logic clk,
-    n_rst,
+    input logic clk, n_rst,
 
     // From host_interface
     input logic reg_wr_en,
@@ -18,6 +17,14 @@ module register_bank #(
 
     // From irq_status_ctrl
     input logic [IRQ_W-1:0] irq_status,
+
+    //inputs from rx buffer
+    input logic [10:0] rx_head_id,
+    input logic [3:0] rx_head_dlc,
+    input logic [63:0] rx_head_data,
+    input logic rx_buf_empty,
+    input logic rx_buf_full,
+    input logic [3:0] rx_count,
 
     // To host_interface
     output logic [DATA_W-1:0] reg_rdata,
@@ -42,35 +49,48 @@ module register_bank #(
     output logic tx_wr_en_pulse,
     output logic tx_request,
 
-    // New RX ports
+    // RX ports
     output logic rx_pop_pulse
 );
 
-    localparam logic [ADDR_W-1:0] MODE_ADDR = 5'd0;  // bit[0]=bt_enable
-    localparam logic [ADDR_W-1:0] BT_BRP_LO_ADDR = 5'd1;  // brp[7:0]
-    localparam logic [ADDR_W-1:0] BT_BRP_HI_ADDR = 5'd2;  // {6'b0, brp[9:8]}
-    localparam logic [ADDR_W-1:0] BT_TQPB_ADDR = 5'd3;  // {2'b0, tq_per_bit}
-    localparam logic [ADDR_W-1:0] BT_SAMPLE_ADDR = 5'd4;  // {2'b0, sample_tq}
-    localparam logic [ADDR_W-1:0] BT_SJW_ADDR = 5'd5;  // {2'b0, sjw}
-    localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 5'd7;
-    localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 5'd8;
-    localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 5'd9;
-    localparam logic [ADDR_W-1:0] TX_ID_ADDR = 5'd10;  // [7:0] of ID
-    localparam logic [ADDR_W-1:0] TX_ID_HIGH_ADDR = 5'd11;  // [10:8] of ID
-    localparam logic [ADDR_W-1:0] TX_DLC_ADDR = 5'd12;  // [3:0] DLC
-    localparam logic [ADDR_W-1:0] TX_DATA0_ADDR = 5'd13;  // data[7:0]
-    localparam logic [ADDR_W-1:0] TX_DATA1_ADDR = 5'd14;  // data[15:8]
-    localparam logic [ADDR_W-1:0] TX_DATA2_ADDR = 5'd15;  // data[23:16]
-    localparam logic [ADDR_W-1:0] TX_DATA3_ADDR = 5'd16;  // data[31:24]
-    localparam logic [ADDR_W-1:0] TX_DATA4_ADDR = 5'd17;  // data[39:32]
-    localparam logic [ADDR_W-1:0] TX_DATA5_ADDR = 5'd18;  // data[47:40]
+    localparam logic [ADDR_W-1:0] MODE_ADDR = 6'd0;  // bit[0]=bt_enable
+    localparam logic [ADDR_W-1:0] BT_BRP_LO_ADDR = 6'd1;  // brp[7:0]
+    localparam logic [ADDR_W-1:0] BT_BRP_HI_ADDR = 6'd2;  // {6'b0, brp[9:8]}
+    localparam logic [ADDR_W-1:0] BT_TQPB_ADDR = 6'd3;  // {2'b0, tq_per_bit}
+    localparam logic [ADDR_W-1:0] BT_SAMPLE_ADDR = 6'd4;  // {2'b0, sample_tq}
+    localparam logic [ADDR_W-1:0] BT_SJW_ADDR = 6'd5;  // {2'b0, sjw}
+    localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 6'd7;
+    localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 6'd8;
+    localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 6'd9;
 
-    localparam logic [ADDR_W-1:0] TX_DATA6_ADDR = 5'd19;  // data[55:48]
-    localparam logic [ADDR_W-1:0] TX_DATA7_ADDR = 5'd20;  // data[63:56]
-    localparam
-        logic [ADDR_W-1:0] TX_CTRL_ADDR = 5'd21;  // bit[0] = tx_request, bit[1] = tx_wr_en pulse
-    localparam logic [ADDR_W-1:0] RX_POP_ADDR = 5'd22;  // write any value to pop RX FIFO
+    //TX Registers
+    localparam logic [ADDR_W-1:0] TX_ID_ADDR = 6'd10;  // [7:0] of ID
+    localparam logic [ADDR_W-1:0] TX_ID_HIGH_ADDR = 6'd11;  // [10:8] of ID
+    localparam logic [ADDR_W-1:0] TX_DLC_ADDR = 6'd12;  // [3:0] DLC
+    localparam logic [ADDR_W-1:0] TX_DATA0_ADDR = 6'd13;  // data[7:0]
+    localparam logic [ADDR_W-1:0] TX_DATA1_ADDR = 6'd14;  // data[15:8]
+    localparam logic [ADDR_W-1:0] TX_DATA2_ADDR = 6'd15;  // data[23:16]
+    localparam logic [ADDR_W-1:0] TX_DATA3_ADDR = 6'd16;  // data[31:24]
+    localparam logic [ADDR_W-1:0] TX_DATA4_ADDR = 6'd17;  // data[39:32]
+    localparam logic [ADDR_W-1:0] TX_DATA5_ADDR = 6'd18;  // data[47:40]
 
+    //RX Registers (read only registers)
+    localparam logic [ADDR_W-1:0] TX_DATA6_ADDR = 6'd19; // data[55:48]
+    localparam logic [ADDR_W-1:0] TX_DATA7_ADDR = 6'd20; // data[63:56]
+    localparam logic [ADDR_W-1:0] TX_CTRL_ADDR = 6'd21; // bit[0] = tx_request, bit[1] = tx_wr_en pulse
+    localparam logic [ADDR_W-1:0] RX_POP_ADDR = 6'd22; // any value will pop RX FIFO
+    localparam logic [ADDR_W-1:0] RX_STATUS_ADDR = 6'd23; // [0]=empty [1]=full [5:2]=count
+    localparam logic [ADDR_W-1:0] RX_ID_LO_ADDR = 6'd24; // id[7:0]
+    localparam logic [ADDR_W-1:0] RX_ID_HI_ADDR = 6'd25; // {5'b0, id[10:8]}
+    localparam logic [ADDR_W-1:0] RX_DLC_ADDR = 6'd26; // {4'b0, dlc}
+    localparam logic [ADDR_W-1:0] RX_DATA0_ADDR = 6'd27; // data[7:0]
+    localparam logic [ADDR_W-1:0] RX_DATA1_ADDR = 6'd28; // data[15:8]
+    localparam logic [ADDR_W-1:0] RX_DATA2_ADDR = 6'd29; // data[23:16]
+    localparam logic [ADDR_W-1:0] RX_DATA3_ADDR = 6'd30; // data[31:24]
+    localparam logic [ADDR_W-1:0] RX_DATA4_ADDR = 6'd31; // data[39:32]
+    localparam logic [ADDR_W-1:0] RX_DATA5_ADDR = 6'd32; // data[47:40]
+    localparam logic [ADDR_W-1:0] RX_DATA6_ADDR = 6'd33; // data[55:48]
+    localparam logic [ADDR_W-1:0] RX_DATA7_ADDR = 6'd34; // data[63:56]
 
     logic [10:0] next_tx_id_cfg;
     logic [3:0] next_tx_dlc_cfg;
@@ -250,6 +270,42 @@ module register_bank #(
                 end
                 TX_CTRL_ADDR: begin
                     reg_rdata = {{(DATA_W - 2) {1'b0}}, tx_wr_en_pulse, tx_request};
+                end
+                RX_STATUS_ADDR: begin
+                    reg_rdata = {{2{1'b0}}, rx_count, rx_buf_full, rx_buf_empty};
+                end
+                RX_ID_LO_ADDR: begin 
+                    reg_rdata = rx_head_id[7:0];
+                end
+                RX_ID_HI_ADDR: begin 
+                    reg_rdata = {{5{1'b0}}, rx_head_id[10:8]};
+                end
+                RX_DLC_ADDR: begin 
+                    reg_rdata = {{(DATA_W-4){1'b0}}, rx_head_dlc};
+                end
+                RX_DATA0_ADDR: begin
+                    reg_rdata = rx_head_data[7:0];
+                end
+                RX_DATA1_ADDR: begin 
+                    reg_rdata = rx_head_data[15:8];
+                end
+                RX_DATA2_ADDR: begin
+                    reg_rdata = rx_head_data[23:16];
+                end
+                RX_DATA3_ADDR: begin
+                    reg_rdata = rx_head_data[31:24];
+                end
+                RX_DATA4_ADDR: begin 
+                    reg_rdata = rx_head_data[39:32];
+                end
+                RX_DATA5_ADDR: begin
+                    reg_rdata = rx_head_data[47:40];
+                end
+                RX_DATA6_ADDR: begin 
+                    reg_rdata = rx_head_data[55:48];
+                end
+                RX_DATA7_ADDR: begin 
+                    reg_rdata = rx_head_data[63:56];
                 end
 
                 default: begin

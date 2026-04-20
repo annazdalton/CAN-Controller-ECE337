@@ -3,7 +3,7 @@
 module host_cfg_top #(
     // parameters
     parameter DATA_W = 8,
-    parameter ADDR_W = 5,
+    parameter ADDR_W = 6,
     parameter IRQ_W = 3
 ) (
     input logic clk, n_rst,
@@ -18,6 +18,14 @@ module host_cfg_top #(
     input logic evt_rx_ready,
     input logic evt_tx_complete,
     input logic evt_error,
+
+    //to register bank for read only registers
+    input logic [10:0] rx_head_id,
+    input logic [3:0] rx_head_dlc,
+    input logic [63:0] rx_head_data,
+    input logic rx_buf_empty,
+    input logic rx_buf_full,
+    input logic [3:0] rx_count,
 
     //Host interface outputs
     output logic [DATA_W-1:0] host_rdata,
@@ -75,7 +83,13 @@ host_interface #(.DATA_W(DATA_W), .ADDR_W(ADDR_W)) top_hi (
     .reg_wr_en(reg_wr_en),
     .reg_rd_en(reg_rd_en),
     .reg_wdata(reg_wdata),
-    .reg_addr(reg_addr)
+    .reg_addr(reg_addr),
+    .rx_head_id (rx_head_id),
+    .rx_head_dlc (rx_head_dlc),
+    .rx_head_data (rx_head_data),
+    .rx_buf_empty (rx_buf_empty),
+    .rx_buf_full (rx_buf_full),
+    .rx_count (rx_count)
 );
 
 register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
