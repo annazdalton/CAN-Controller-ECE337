@@ -4,115 +4,94 @@
 module tb_CAN_top;
 
     localparam CLK_PERIOD = 10ns;
+    localparam int MAX_BITS = 512;
+
+    localparam logic [5:0] ADDR_MODE = 6'h00;
+    localparam logic [5:0] ADDR_BT_BRP_LO = 6'h01;
+    localparam logic [5:0] ADDR_BT_BRP_HI = 6'h02;
+    localparam logic [5:0] ADDR_BT_TQPB = 6'h03;
+    localparam logic [5:0] ADDR_BT_SAMPLE = 6'h04;
+    localparam logic [5:0] ADDR_BT_SJW = 6'h05;
+    localparam logic [5:0] ADDR_BT_FD = 6'h06;
+    localparam logic [5:0] ADDR_IRQ_ENABLE = 6'h07;
+    localparam logic [5:0] ADDR_IRQ_STATUS = 6'h08;
+    localparam logic [5:0] ADDR_IRQ_CLEAR = 6'h09;
+    localparam logic [5:0] ADDR_TX_ID_LO = 6'h0A;
+    localparam logic [5:0] ADDR_TX_ID_HI = 6'h0B;
+    localparam logic [5:0] ADDR_TX_DLC = 6'h0C;
+    localparam logic [5:0] ADDR_TX_DATA0 = 6'h0D;
+    localparam logic [5:0] ADDR_TX_DATA1 = 6'h0E;
+    localparam logic [5:0] ADDR_TX_DATA2 = 6'h0F;
+    localparam logic [5:0] ADDR_TX_DATA3 = 6'h10;
+    localparam logic [5:0] ADDR_TX_DATA4 = 6'h11;
+    localparam logic [5:0] ADDR_TX_DATA5 = 6'h12;
+    localparam logic [5:0] ADDR_TX_DATA6 = 6'h13;
+    localparam logic [5:0] ADDR_TX_DATA7 = 6'h14;
+    localparam logic [5:0] ADDR_TX_CTRL = 6'h15;
+    localparam logic [5:0] ADDR_RX_POP = 6'h16;
+
+    logic clk;
+    logic n_rst;
+
+    logic force_bus_en;
+    logic force_bus_bit;
+    logic bus_line;
+
+    logic host_wr_req_a;
+    logic host_rd_req_a;
+    logic [7:0] host_wdata_a;
+    logic [5:0] host_addr_a;
+    logic [7:0] host_rdata_a;
+    logic host_wr_ack_a;
+    logic host_rd_ack_a;
+    logic irq_a;
+
+    logic tx_bit_a;
+    logic tx_buf_valid_a;
+    logic tx_complete_a;
+    logic arb_lost_a;
+    logic [10:0] rx_head_id_a;
+    logic [3:0] rx_head_dlc_a;
+    logic [63:0] rx_head_data_a;
+    logic rx_buf_empty_a;
+    logic rx_buf_full_a;
+    logic [3:0] rx_count_a;
+    logic rx_ready_a;
+    logic crc_err_a;
+    logic stf_err_a;
+
+    logic host_wr_req_b;
+    logic host_rd_req_b;
+    logic [7:0] host_wdata_b;
+    logic [5:0] host_addr_b;
+    logic [7:0] host_rdata_b;
+    logic host_wr_ack_b;
+    logic host_rd_ack_b;
+    logic irq_b;
+
+    logic tx_bit_b;
+    logic tx_buf_valid_b;
+    logic tx_complete_b;
+    logic arb_lost_b;
+    logic [10:0] rx_head_id_b;
+    logic [3:0] rx_head_dlc_b;
+    logic [63:0] rx_head_data_b;
+    logic rx_buf_empty_b;
+    logic rx_buf_full_b;
+    logic [3:0] rx_count_b;
+    logic rx_ready_b;
+    logic crc_err_b;
+    logic stf_err_b;
+
+    logic [7:0] rd_data;
+    logic [MAX_BITS-1:0] frame_bits;
+    int frame_len;
+    int edge_idx;
 
     initial begin
         $dumpfile("waveform.vcd");
         $dumpvars;
     end
-
-    logic clk;
-    logic n_rst;
-
-    string testcase;
-    integer pass_count;
-    integer fail_count;
-
-    // Host interface
-    logic host_wr_req;
-    logic host_rd_req;
-    logic [7:0] host_wdata;
-    logic [4:0] host_addr;
-    logic [7:0] host_rdata;
-    logic host_wr_ack;
-    logic host_rd_ack;
-    logic irq;
-
-     // TX outputs
-    logic tx_bit;
-    logic tx_buf_valid;
-    logic tx_complete;
-    logic arb_lost;
-
-    // RX outputs
-    logic [10:0] rx_head_id;
-    logic [3:0] rx_head_dlc;
-    logic [63:0] rx_head_data;
-    logic rx_buf_empty;
-    logic rx_buf_full;
-    logic [2:0] rx_count;
-
-    // Status outputs
-    logic rx_ready;
-    logic crc_err;
-    logic stf_err;
-    logic error_flag;
-    logic bus_rx;
-
-    // logic bus_line;
-    // logic tx_bit_a;
-    // logic tx_bit_b;
-
-    // logic tx_request_a;
-    // logic tx_wr_en_a;
-    // logic [10:0] tx_wr_id_a;
-    // logic [3:0] tx_wr_dlc_a;
-    // logic [63:0] tx_wr_data_a;
-
-    // logic tx_request_b;
-    // logic tx_wr_en_b;
-    // logic [10:0] tx_wr_id_b;
-    // logic [3:0] tx_wr_dlc_b;
-    // logic [63:0] tx_wr_data_b;
-
-    // logic rx_pop_a;
-    // logic rx_pop_b;
-
-    // logic bt_enable;
-    // logic [9:0] bt_brp;
-    // logic [5:0] bt_tq_per_bit;
-    // logic [5:0] bt_sample_tq;
-    // logic [5:0] bt_sjw;
-    // logic bt_fd;
-
-    // logic tx_buf_valid_a;
-    // logic tx_complete_a;
-    // logic arb_lost_a;
-
-    // logic [10:0] rx_head_id_b;
-    // logic [3:0] rx_head_dlc_b;
-    // logic [63:0] rx_head_data_b;
-    // logic rx_buf_empty_b;
-    // logic rx_buf_full_b;
-    // logic [$clog2(4+1)-1:0] rx_count_b;
-    // logic rx_ready_b;
-    // logic crc_err_b;
-    // logic stf_err_b;
-    // logic error_flag_b;
-
-    // logic tx_buf_valid_b;
-    // logic tx_complete_b;
-    // logic arb_lost_b;
-
-    // logic [10:0] rx_head_id_a;
-    // logic [3:0] rx_head_dlc_a;
-    // logic [63:0] rx_head_data_a;
-    // logic rx_buf_empty_a;
-    // logic rx_buf_full_a;
-    // logic [$clog2(4+1)-1:0] rx_count_a;
-    // logic rx_ready_a;
-    // logic crc_err_a;
-    // logic stf_err_a;
-    // logic error_flag_a;
-
-    // logic saw_complete_a;
-    // logic saw_complete_b;
-    // logic saw_lost_a;
-    // logic saw_lost_b;
-
-    // integer pre_pop_a;
-    // integer pre_pop_b;
-
-    // assign bus_line = tx_bit_a & tx_bit_b;
 
     always begin
         clk = 1'b0;
@@ -121,543 +100,678 @@ module tb_CAN_top;
         #(CLK_PERIOD/2.0);
     end
 
-    // task init_signals;
-    // begin
-    //     n_rst = 1'b0;
+    assign bus_line = tx_bit_a & tx_bit_b & (force_bus_en ? force_bus_bit : 1'b1);
 
-    //     tx_request_a = 1'b0;
-    //     tx_wr_en_a = 1'b0;
-    //     tx_wr_id_a = 11'd0;
-    //     tx_wr_dlc_a = 4'd0;
-    //     tx_wr_data_a = 64'd0;
-
-    //     tx_request_b = 1'b0;
-    //     tx_wr_en_b = 1'b0;
-    //     tx_wr_id_b = 11'd0;
-    //     tx_wr_dlc_b = 4'd0;
-    //     tx_wr_data_b = 64'd0;
-
-    //     rx_pop_a = 1'b0;
-    //     rx_pop_b = 1'b0;
-
-    //     bt_enable = 1'b1;
-    //     bt_brp = 10'd0;
-    //     bt_tq_per_bit = 6'd8;
-    //     bt_sample_tq = 6'd3;
-    //     bt_sjw = 6'd1;
-    //     bt_fd = 1'b0;
-    // end
-    // endtask
-
-    // task reset_dut;
-    // begin
-    //     @(negedge clk);
-    //     n_rst = 1'b0;
-    //     repeat (6) @(posedge clk);
-    //     @(negedge clk);
-    //     n_rst = 1'b1;
-    //     repeat (6) @(posedge clk);
-    // end
-    // endtask
-
-    // task monitor_nodes(input integer cycles);
-    //     integer i;
-    // begin
-    //     saw_complete_a = 1'b0;
-    //     saw_complete_b = 1'b0;
-    //     saw_lost_a = 1'b0;
-    //     saw_lost_b = 1'b0;
-
-    //     for (i = 0; i < cycles; i = i + 1) begin
-    //         @(posedge clk);
-    //         if (tx_complete_a) saw_complete_a = 1'b1;
-    //         if (tx_complete_b) saw_complete_b = 1'b1;
-    //         if (arb_lost_a) saw_lost_a = 1'b1;
-    //         if (arb_lost_b) saw_lost_b = 1'b1;
-    //     end
-    // end
-    // endtask
-
-    // CAN_top DUT_A (
-    //     .clk(clk),
-    //     .n_rst(n_rst),
-    //     .bus_rx(bus_line),
-    //     .tx_request(tx_request_a),
-    //     .tx_wr_en(tx_wr_en_a),
-    //     .tx_wr_id(tx_wr_id_a),
-    //     .tx_wr_dlc(tx_wr_dlc_a),
-    //     .tx_wr_data(tx_wr_data_a),
-    //     .rx_pop(rx_pop_a),
-    //     .bt_enable(bt_enable),
-    //     .bt_brp(bt_brp),
-    //     .bt_tq_per_bit(bt_tq_per_bit),
-    //     .bt_sample_tq(bt_sample_tq),
-    //     .bt_sjw(bt_sjw),
-    //     .bt_fd(bt_fd),
-    //     .tx_bit(tx_bit_a),
-    //     .tx_buf_valid(tx_buf_valid_a),
-    //     .tx_complete(tx_complete_a),
-    //     .arb_lost(arb_lost_a),
-    //     .rx_head_id(rx_head_id_a),
-    //     .rx_head_dlc(rx_head_dlc_a),
-    //     .rx_head_data(rx_head_data_a),
-    //     .rx_buf_empty(rx_buf_empty_a),
-    //     .rx_buf_full(rx_buf_full_a),
-    //     .rx_count(rx_count_a),
-    //     .rx_ready(rx_ready_a),
-    //     .crc_err(crc_err_a),
-    //     .stf_err(stf_err_a),
-    //     .error_flag(error_flag_a)
-    // );
-
-    // CAN_top DUT_B (
-    //     .clk(clk),
-    //     .n_rst(n_rst),
-    //     .bus_rx(bus_line),
-    //     .tx_request(tx_request_b),
-    //     .tx_wr_en(tx_wr_en_b),
-    //     .tx_wr_id(tx_wr_id_b),
-    //     .tx_wr_dlc(tx_wr_dlc_b),
-    //     .tx_wr_data(tx_wr_data_b),
-    //     .rx_pop(rx_pop_b),
-    //     .bt_enable(bt_enable),
-    //     .bt_brp(bt_brp),
-    //     .bt_tq_per_bit(bt_tq_per_bit),
-    //     .bt_sample_tq(bt_sample_tq),
-    //     .bt_sjw(bt_sjw),
-    //     .bt_fd(bt_fd),
-    //     .tx_bit(tx_bit_b),
-    //     .tx_buf_valid(tx_buf_valid_b),
-    //     .tx_complete(tx_complete_b),
-    //     .arb_lost(arb_lost_b),
-    //     .rx_head_id(rx_head_id_b),
-    //     .rx_head_dlc(rx_head_dlc_b),
-    //     .rx_head_data(rx_head_data_b),
-    //     .rx_buf_empty(rx_buf_empty_b),
-    //     .rx_buf_full(rx_buf_full_b),
-    //     .rx_count(rx_count_b),
-    //     .rx_ready(rx_ready_b),
-    //     .crc_err(crc_err_b),
-    //     .stf_err(stf_err_b),
-    //     .error_flag(error_flag_b)
-    // );
-    
-    //address map
-    localparam logic [4:0] ADDR_MODE = 5'h00;
-    localparam logic [4:0] ADDR_BT_BRP_LO = 5'h01;
-    localparam logic [4:0] ADDR_BT_BRP_HI = 5'h02;
-    localparam logic [4:0] ADDR_BT_TQPB = 5'h03;
-    localparam logic [4:0] ADDR_BT_SAMPLE = 5'h04;
-    localparam logic [4:0] ADDR_BT_SJW = 5'h05;
-    localparam logic [4:0] ADDR_BT_FD = 5'h06;
-    localparam logic [4:0] ADDR_IRQ_ENABLE = 5'h07;
-    localparam logic [4:0] ADDR_IRQ_STATUS = 5'h08;
-    localparam logic [4:0] ADDR_IRQ_CLEAR = 5'h09;
-    localparam logic [4:0] ADDR_TX_ID_LO = 5'h0A;
-    localparam logic [4:0] ADDR_TX_ID_HI = 5'h0B;
-    localparam logic [4:0] ADDR_TX_DLC = 5'h0C;
-    localparam logic [4:0] ADDR_TX_DATA0 = 5'h0D;
-    localparam logic [4:0] ADDR_TX_DATA1 = 5'h0E;
-    localparam logic [4:0] ADDR_TX_DATA2 = 5'h0F;
-    localparam logic [4:0] ADDR_TX_DATA3 = 5'h10;
-    localparam logic [4:0] ADDR_TX_DATA4 = 5'h11;
-    localparam logic [4:0] ADDR_TX_DATA5 = 5'h12;
-    localparam logic [4:0] ADDR_TX_DATA6 = 5'h13;
-    localparam logic [4:0] ADDR_TX_DATA7 = 5'h14;
-    localparam logic [4:0] ADDR_TX_CTRL = 5'h15;
-    localparam logic [4:0] ADDR_RX_POP = 5'h16;
-
-    CAN_top dut (
-        .clk (clk),
-        .n_rst (n_rst),
-        .bus_rx (bus_rx),
-        .host_wr_req (host_wr_req),
-        .host_rd_req (host_rd_req),
-        .host_wdata (host_wdata),
-        .host_addr (host_addr),
-        .host_rdata (host_rdata),
-        .host_wr_ack (host_wr_ack),
-        .host_rd_ack (host_rd_ack),
-        .irq (irq),
-        .tx_bit (tx_bit),
-        .tx_buf_valid (tx_buf_valid),
-        .tx_complete (tx_complete),
-        .arb_lost (arb_lost),
-        .rx_head_id (rx_head_id),
-        .rx_head_dlc (rx_head_dlc),
-        .rx_head_data (rx_head_data),
-        .rx_buf_empty (rx_buf_empty),
-        .rx_buf_full (rx_buf_full),
-        .rx_count (rx_count),
-        .rx_ready (rx_ready),
-        .crc_err (crc_err),
-        .stf_err (stf_err)
+    CAN_top dut_a (
+        .clk(clk),
+        .n_rst(n_rst),
+        .bus_rx(bus_line),
+        .host_wr_req(host_wr_req_a),
+        .host_rd_req(host_rd_req_a),
+        .host_wdata(host_wdata_a),
+        .host_addr(host_addr_a),
+        .tx_bit(tx_bit_a),
+        .tx_buf_valid(tx_buf_valid_a),
+        .tx_complete(tx_complete_a),
+        .arb_lost(arb_lost_a),
+        .rx_head_id(rx_head_id_a),
+        .rx_head_dlc(rx_head_dlc_a),
+        .rx_head_data(rx_head_data_a),
+        .rx_buf_empty(rx_buf_empty_a),
+        .rx_buf_full(rx_buf_full_a),
+        .rx_count(rx_count_a),
+        .rx_ready(rx_ready_a),
+        .crc_err(crc_err_a),
+        .stf_err(stf_err_a),
+        .host_rdata(host_rdata_a),
+        .host_wr_ack(host_wr_ack_a),
+        .host_rd_ack(host_rd_ack_a),
+        .irq(irq_a)
     );
 
-    task automatic host_write(
-        input logic [4:0] addr, 
-        input logic [7:0] data
+    CAN_top dut_b (
+        .clk(clk),
+        .n_rst(n_rst),
+        .bus_rx(bus_line),
+        .host_wr_req(host_wr_req_b),
+        .host_rd_req(host_rd_req_b),
+        .host_wdata(host_wdata_b),
+        .host_addr(host_addr_b),
+        .tx_bit(tx_bit_b),
+        .tx_buf_valid(tx_buf_valid_b),
+        .tx_complete(tx_complete_b),
+        .arb_lost(arb_lost_b),
+        .rx_head_id(rx_head_id_b),
+        .rx_head_dlc(rx_head_dlc_b),
+        .rx_head_data(rx_head_data_b),
+        .rx_buf_empty(rx_buf_empty_b),
+        .rx_buf_full(rx_buf_full_b),
+        .rx_count(rx_count_b),
+        .rx_ready(rx_ready_b),
+        .crc_err(crc_err_b),
+        .stf_err(stf_err_b),
+        .host_rdata(host_rdata_b),
+        .host_wr_ack(host_wr_ack_b),
+        .host_rd_ack(host_rd_ack_b),
+        .irq(irq_b)
     );
-        integer timeout;
+
+
+    task automatic host_write_a(input logic [5:0] addr, input logic [7:0] data);
+    begin
         @(negedge clk);
-        host_wr_req = 1'b1;
-        host_addr   = addr;
-        host_wdata  = data;
-        
-        // Wait for ack explicitly instead of fixed cycle count
-        timeout = 0;
+        host_wr_req_a = 1'b1;
+        host_addr_a = addr;
+        host_wdata_a = data;
+
         @(posedge clk);
-        while (!host_wr_ack && timeout < 10) begin
+        while (!host_wr_ack_a) begin
             @(posedge clk);
-            timeout++;
         end
-        if (!host_wr_ack) begin
-            $display("WARNING: no wr_ack for addr=0x%02X data=0x%02X", addr, data);
-        end
-        host_wr_req = 1'b0;
-        host_wdata  = 8'h00;
-        host_addr   = 5'h00;
+
+        @(negedge clk);
+        host_wr_req_a = 1'b0;
+        host_addr_a = '0;
+        host_wdata_a = '0;
+    end
     endtask
 
-    task automatic host_read(
-        input logic [4:0] addr,
-        output logic [7:0] data
-    );
-        integer timeout;
+    task automatic host_write_b(input logic [5:0] addr, input logic [7:0] data);
+    begin
         @(negedge clk);
-        host_rd_req = 1'b1;
-        host_addr   = addr;
+        host_wr_req_b = 1'b1;
+        host_addr_b = addr;
+        host_wdata_b = data;
 
-        timeout = 0;
         @(posedge clk);
-        while (!host_rd_ack && timeout < 10) begin
+        while (!host_wr_ack_b) begin
             @(posedge clk);
-            timeout++;
         end
-        if (!host_rd_ack)
-            $display("WARNING: no rd_ack for addr=0x%02X", addr);
-        data        = host_rdata;
-        host_rd_req = 1'b0;
-        host_addr   = 5'h00;
+
+        @(negedge clk);
+        host_wr_req_b = 1'b0;
+        host_addr_b = '0;
+        host_wdata_b = '0;
+    end
     endtask
 
-     task automatic configure_bit_timing(
+    task automatic host_read_a(input logic [5:0] addr, output logic [7:0] data);
+    begin
+        @(negedge clk);
+        host_rd_req_a = 1'b1;
+        host_addr_a = addr;
+
+        @(posedge clk);
+        while (!host_rd_ack_a) begin
+            @(posedge clk);
+        end
+
+        data = host_rdata_a;
+
+        @(negedge clk);
+        host_rd_req_a = 1'b0;
+        host_addr_a = '0;
+    end
+    endtask
+
+    task automatic host_read_b(input logic [5:0] addr, output logic [7:0] data);
+    begin
+        @(negedge clk);
+        host_rd_req_b = 1'b1;
+        host_addr_b = addr;
+
+        @(posedge clk);
+        while (!host_rd_ack_b) begin
+            @(posedge clk);
+        end
+
+        data = host_rdata_b;
+
+        @(negedge clk);
+        host_rd_req_b = 1'b0;
+        host_addr_b = '0;
+    end
+    endtask
+
+    task automatic clear_irq_a(input logic [7:0] mask);
+    begin
+        host_write_a(ADDR_IRQ_CLEAR, mask);
+    end
+    endtask
+
+    task automatic clear_irq_b(input logic [7:0] mask);
+    begin
+        host_write_b(ADDR_IRQ_CLEAR, mask);
+    end
+    endtask
+
+    task automatic configure_node_a_custom(
+        input logic [2:0] irq_mask,
         input logic [9:0] brp,
-        input logic [5:0] tq_per_bit,
-        input logic [5:0] sample_tq,
-        input logic [5:0] sjw,
-        input logic fd
+        input logic fd_en
     );
-        $display("[%0t] Configuring bit timing", $time);
-        host_write(ADDR_BT_BRP_LO, brp[7:0]);
-        host_write(ADDR_BT_BRP_HI, {{6{1'b0}}, brp[9:8]});
-        host_write(ADDR_BT_TQPB,   {{2{1'b0}}, tq_per_bit});
-        host_write(ADDR_BT_SAMPLE, {{2{1'b0}}, sample_tq});
-        host_write(ADDR_BT_SJW,    {{2{1'b0}}, sjw});
-        host_write(ADDR_BT_FD,     {{7{1'b0}}, fd});
+    begin
+        host_write_a(ADDR_MODE, 8'h00);
+        host_write_a(ADDR_BT_BRP_LO, brp[7:0]);
+        host_write_a(ADDR_BT_BRP_HI, {{6{1'b0}}, brp[9:8]});
+        host_write_a(ADDR_BT_TQPB, 8'd8);
+        host_write_a(ADDR_BT_SAMPLE, 8'd3);
+        host_write_a(ADDR_BT_SJW, 8'd1);
+        host_write_a(ADDR_BT_FD, {{7{1'b0}}, fd_en});
+        host_write_a(ADDR_MODE, 8'h01);
+        host_write_a(ADDR_IRQ_ENABLE, {{5{1'b0}}, irq_mask});
+        host_write_a(ADDR_TX_CTRL, 8'h00);
+        clear_irq_a(8'h07);
+    end
     endtask
 
-    task automatic send_can_frame(
+    task automatic configure_node_b_custom(
+        input logic [2:0] irq_mask,
+        input logic [9:0] brp,
+        input logic fd_en
+    );
+    begin
+        host_write_b(ADDR_MODE, 8'h00);
+        host_write_b(ADDR_BT_BRP_LO, brp[7:0]);
+        host_write_b(ADDR_BT_BRP_HI, {{6{1'b0}}, brp[9:8]});
+        host_write_b(ADDR_BT_TQPB, 8'd8);
+        host_write_b(ADDR_BT_SAMPLE, 8'd3);
+        host_write_b(ADDR_BT_SJW, 8'd1);
+        host_write_b(ADDR_BT_FD, {{7{1'b0}}, fd_en});
+        host_write_b(ADDR_MODE, 8'h01);
+        host_write_b(ADDR_IRQ_ENABLE, {{5{1'b0}}, irq_mask});
+        host_write_b(ADDR_TX_CTRL, 8'h00);
+        clear_irq_b(8'h07);
+    end
+    endtask
+
+    task automatic configure_node_a(input logic [2:0] irq_mask);
+    begin
+        configure_node_a_custom(irq_mask, 10'd0, 1'b0);
+    end
+    endtask
+
+    task automatic configure_node_b(input logic [2:0] irq_mask);
+    begin
+        configure_node_b_custom(irq_mask, 10'd0, 1'b0);
+    end
+    endtask
+
+    task automatic load_frame_a(
         input logic [10:0] id,
-        input logic [3:0]  dlc,
+        input logic [3:0] dlc,
         input logic [63:0] data
     );
-        $display("[%0t] Enqueueing CAN frame ID=0x%03X DLC=%0d", $time, id, dlc);
-        host_write(ADDR_TX_ID_LO,  id[7:0]);
-        host_write(ADDR_TX_ID_HI,  {{5{1'b0}}, id[10:8]});
-        host_write(ADDR_TX_DLC,    {{4{1'b0}}, dlc});
-        host_write(ADDR_TX_DATA0,  data[7:0]);
-        host_write(ADDR_TX_DATA1,  data[15:8]);
-        host_write(ADDR_TX_DATA2,  data[23:16]);
-        host_write(ADDR_TX_DATA3,  data[31:24]);
-        host_write(ADDR_TX_DATA4,  data[39:32]);
-        host_write(ADDR_TX_DATA5,  data[47:40]);
-        host_write(ADDR_TX_DATA6,  data[55:48]);
-        host_write(ADDR_TX_DATA7,  data[63:56]);
-        // Write TX_CTRL: bit[1]=tx_wr_en pulse, bit[0]=tx_request
-        host_write(ADDR_TX_CTRL,   8'b00000011);
-        // Deassert tx_request after frame is queued
-        // (keep asserted until tx_complete IRQ seen in real usage)
+    begin
+        host_write_a(ADDR_TX_ID_LO, id[7:0]);
+        host_write_a(ADDR_TX_ID_HI, {{5{1'b0}}, id[10:8]});
+        host_write_a(ADDR_TX_DLC, {{4{1'b0}}, dlc});
+        host_write_a(ADDR_TX_DATA0, data[7:0]);
+        host_write_a(ADDR_TX_DATA1, data[15:8]);
+        host_write_a(ADDR_TX_DATA2, data[23:16]);
+        host_write_a(ADDR_TX_DATA3, data[31:24]);
+        host_write_a(ADDR_TX_DATA4, data[39:32]);
+        host_write_a(ADDR_TX_DATA5, data[47:40]);
+        host_write_a(ADDR_TX_DATA6, data[55:48]);
+        host_write_a(ADDR_TX_DATA7, data[63:56]);
+        host_write_a(ADDR_TX_CTRL, 8'h02);
+    end
     endtask
 
-    task automatic wait_for_irq(
-        output logic [7:0] irq_status
+    task automatic load_frame_b(
+        input logic [10:0] id,
+        input logic [3:0] dlc,
+        input logic [63:0] data
     );
-        integer timeout;
-        timeout = 0;
-        $display("[%0t] Waiting for IRQ", $time);
-        while (!irq && timeout < 10000) begin
+    begin
+        host_write_b(ADDR_TX_ID_LO, id[7:0]);
+        host_write_b(ADDR_TX_ID_HI, {{5{1'b0}}, id[10:8]});
+        host_write_b(ADDR_TX_DLC, {{4{1'b0}}, dlc});
+        host_write_b(ADDR_TX_DATA0, data[7:0]);
+        host_write_b(ADDR_TX_DATA1, data[15:8]);
+        host_write_b(ADDR_TX_DATA2, data[23:16]);
+        host_write_b(ADDR_TX_DATA3, data[31:24]);
+        host_write_b(ADDR_TX_DATA4, data[39:32]);
+        host_write_b(ADDR_TX_DATA5, data[47:40]);
+        host_write_b(ADDR_TX_DATA6, data[55:48]);
+        host_write_b(ADDR_TX_DATA7, data[63:56]);
+        host_write_b(ADDR_TX_CTRL, 8'h02);
+    end
+    endtask
+
+    task automatic request_tx_a;
+    begin
+        host_write_a(ADDR_TX_CTRL, 8'h01);
+    end
+    endtask
+
+    task automatic request_tx_b;
+    begin
+        host_write_b(ADDR_TX_CTRL, 8'h01);
+    end
+    endtask
+
+    task automatic request_tx_both;
+        logic got_a;
+        logic got_b;
+    begin
+        @(negedge clk);
+        host_wr_req_a = 1'b1;
+        host_addr_a = ADDR_TX_CTRL;
+        host_wdata_a = 8'h01;
+        host_wr_req_b = 1'b1;
+        host_addr_b = ADDR_TX_CTRL;
+        host_wdata_b = 8'h01;
+
+        got_a = 1'b0;
+        got_b = 1'b0;
+        while (!(got_a && got_b)) begin
             @(posedge clk);
-            timeout++;
+            if (host_wr_ack_a) got_a = 1'b1;
+            if (host_wr_ack_b) got_b = 1'b1;
         end
-        if (timeout >= 10000)
-            $display("ERROR: IRQ timeout");
-        else
-            $display("[%0t] IRQ asserted", $time);
-        host_read(ADDR_IRQ_STATUS, irq_status);
-        $display("[%0t] IRQ status = 0x%02X", $time, irq_status);
+
+        @(negedge clk);
+        host_wr_req_a = 1'b0;
+        host_addr_a = '0;
+        host_wdata_a = '0;
+        host_wr_req_b = 1'b0;
+        host_addr_b = '0;
+        host_wdata_b = '0;
+    end
     endtask
 
-    task automatic clear_irq(
-        input logic [7:0] mask
+    task automatic send_frame_a(
+        input logic [10:0] id,
+        input logic [3:0] dlc,
+        input logic [63:0] data
     );
-        host_write(ADDR_IRQ_CLEAR, mask);
-        $display("[%0t] Cleared IRQ mask=0x%02X", $time, mask);
+    begin
+        load_frame_a(id, dlc, data);
+        request_tx_a();
+    end
     endtask
 
-    task automatic pop_rx_frame();
-        $display("[%0t] Popping RX frame: ID=0x%03X DLC=%0d DATA=0x%016X", $time, rx_head_id, rx_head_dlc, rx_head_data);
-        host_write(ADDR_RX_POP, 8'hFF);
+    task automatic send_frame_b(
+        input logic [10:0] id,
+        input logic [3:0] dlc,
+        input logic [63:0] data
+    );
+    begin
+        load_frame_b(id, dlc, data);
+        request_tx_b();
+    end
     endtask
 
-    task automatic do_reset();
+    task automatic pop_rx_a;
+    begin
+        host_write_a(ADDR_RX_POP, 8'h01);
+    end
+    endtask
+
+    function automatic [14:0] crc15_calc(
+        input logic [10:0] id,
+        input logic [3:0] dlc,
+        input logic [63:0] data,
+        input logic fd_frame
+    );
+        logic [14:0] crc;
+        logic bit_in;
+        logic feedback;
+        int data_bits;
+        int idx;
+    begin
+        crc = 15'd0;
+        data_bits = dlc * 8;
+
+        for (idx = 0; idx < (19 + data_bits); idx = idx + 1) begin
+            if (idx == 0) begin
+                bit_in = 1'b0;
+            end else if (idx <= 11) begin
+                bit_in = id[11 - idx];
+            end else if (idx <= 13) begin
+                bit_in = 1'b0;
+            end else if (idx == 14) begin
+                bit_in = fd_frame;
+            end else if (idx <= 18) begin
+                bit_in = dlc[18 - idx];
+            end else begin
+                bit_in = data[63 - (idx - 19)];
+            end
+
+            feedback = crc[14] ^ bit_in;
+            crc = {crc[13:0], 1'b0};
+            if (feedback) begin
+                crc = crc ^ 15'b100010110011001;
+            end
+        end
+
+        crc15_calc = crc;
+    end
+    endfunction
+
+    task automatic build_frame_stream(
+        input logic [10:0] id,
+        input logic [3:0] dlc,
+        input logic [63:0] data,
+        input logic fd_frame,
+        input logic corrupt_crc,
+        input logic apply_stuff,
+        output logic [MAX_BITS-1:0] bits,
+        output int nbits
+    );
+        logic [MAX_BITS-1:0] raw;
+        logic [14:0] crc;
+        logic raw_bit;
+        logic last_bit;
+        int data_bits;
+        int pre_len;
+        int raw_len;
+        int idx;
+        int out_idx;
+        int run_count;
+    begin
+        bits = '0;
+        raw = '0;
+
+        data_bits = dlc * 8;
+        pre_len = 34 + data_bits;
+        raw_len = pre_len + 10;
+
+        crc = crc15_calc(id, dlc, data, fd_frame);
+        if (corrupt_crc) begin
+            crc[2] = ~crc[2];
+        end
+
+        raw[0] = 1'b0;
+        for (idx = 1; idx <= 11; idx = idx + 1) begin
+            raw[idx] = id[11 - idx];
+        end
+        raw[12] = 1'b0;
+        raw[13] = 1'b0;
+        raw[14] = fd_frame;
+        raw[15] = dlc[3];
+        raw[16] = dlc[2];
+        raw[17] = dlc[1];
+        raw[18] = dlc[0];
+
+        for (idx = 0; idx < data_bits; idx = idx + 1) begin
+            raw[19 + idx] = data[63 - idx];
+        end
+
+        for (idx = 0; idx < 15; idx = idx + 1) begin
+            raw[19 + data_bits + idx] = crc[14 - idx];
+        end
+
+        for (idx = 0; idx < 10; idx = idx + 1) begin
+            raw[pre_len + idx] = 1'b1;
+        end
+
+        if (!apply_stuff) begin
+            bits = raw;
+            nbits = raw_len;
+        end else begin
+            out_idx = 0;
+            run_count = 0;
+            last_bit = 1'b0;
+
+            for (idx = 0; idx < pre_len; idx = idx + 1) begin
+                raw_bit = raw[idx];
+                bits[out_idx] = raw_bit;
+                out_idx = out_idx + 1;
+
+                if (run_count == 0) begin
+                    last_bit = raw_bit;
+                    run_count = 1;
+                end else if (raw_bit == last_bit) begin
+                    run_count = run_count + 1;
+                    if (run_count == 5) begin
+                        bits[out_idx] = ~last_bit;
+                        out_idx = out_idx + 1;
+                        last_bit = ~last_bit;
+                        run_count = 1;
+                    end
+                end else begin
+                    last_bit = raw_bit;
+                    run_count = 1;
+                end
+            end
+
+            for (idx = pre_len; idx < raw_len; idx = idx + 1) begin
+                bits[out_idx] = raw[idx];
+                out_idx = out_idx + 1;
+            end
+
+            nbits = out_idx;
+        end
+    end
+    endtask
+
+    task automatic drive_external_bits(input logic [MAX_BITS-1:0] bits, input int nbits);
+        int idx;
+    begin
+        force_bus_en = 1'b1;
+        force_bus_bit = 1'b1;
+
+        repeat (16) @(posedge dut_a.bit_tick);
+
+        for (idx = 0; idx < nbits; idx = idx + 1) begin
+            force_bus_bit = bits[idx];
+            @(posedge dut_a.bit_tick);
+        end
+
+        force_bus_bit = 1'b1;
+        repeat (16) @(posedge dut_a.bit_tick);
+        force_bus_en = 1'b0;
+    end
+    endtask
+
+    task automatic find_transition_pair_index(
+        input logic [MAX_BITS-1:0] bits,
+        input int nbits,
+        input int start_idx,
+        output int idx_out
+    );
+        int idx;
+    begin
+        idx_out = -1;
+        for (idx = start_idx; idx < (nbits - 2); idx = idx + 1) begin
+            if ((bits[idx] != bits[idx + 1]) && (bits[idx + 1] != bits[idx + 2])) begin
+                idx_out = idx;
+                break;
+            end
+        end
+    end
+    endtask
+
+    task automatic drive_external_bits_with_phase_bump(
+        input logic [MAX_BITS-1:0] bits,
+        input int nbits,
+        input int bump_idx,
+        input int bump_tq
+    );
+        int idx;
+        int nominal_tq;
+        int wait_tq;
+        int shift_tq;
+    begin
+        nominal_tq = 8;
+        force_bus_en = 1'b1;
+        force_bus_bit = 1'b1;
+
+        repeat (16) @(posedge dut_a.bit_tick);
+        force_bus_bit = bits[0];
+
+        for (idx = 0; idx < (nbits - 1); idx = idx + 1) begin
+            shift_tq = 0;
+            if (idx == bump_idx) begin
+                shift_tq = bump_tq;
+            end else if (idx == (bump_idx + 1)) begin
+                shift_tq = -bump_tq;
+            end
+
+            wait_tq = nominal_tq + shift_tq;
+            if (wait_tq < 1) begin
+                wait_tq = 1;
+            end
+
+            repeat (wait_tq) @(posedge dut_a.u_bit_timing.tq_tick);
+            force_bus_bit = bits[idx + 1];
+        end
+
+        repeat (nominal_tq) @(posedge dut_a.u_bit_timing.tq_tick);
+        force_bus_bit = 1'b1;
+        repeat (16) @(posedge dut_a.bit_tick);
+        force_bus_en = 1'b0;
+    end
+    endtask
+
+    task automatic do_reset;
+    begin
         n_rst = 1'b0;
-        host_wr_req = 1'b0;
-        host_rd_req = 1'b0;
-        host_wdata = 8'h00;
-        host_addr = 5'h00;
-        bus_rx = 1'b1; // recessive
-        repeat(4) @(posedge clk);
+        host_wr_req_a = 1'b0;
+        host_rd_req_a = 1'b0;
+        host_wdata_a = '0;
+        host_addr_a = '0;
+        host_wr_req_b = 1'b0;
+        host_rd_req_b = 1'b0;
+        host_wdata_b = '0;
+        host_addr_b = '0;
+        force_bus_en = 1'b0;
+        force_bus_bit = 1'b1;
+        repeat (8) @(posedge clk);
         n_rst = 1'b1;
-        repeat(2) @(posedge clk);
-        $display("[%0t] Reset complete", $time);
+        repeat (8) @(posedge clk);
+    end
     endtask
-
-    logic [7:0] rd_data;
-    logic [7:0] irq_status;
 
     initial begin
-        // init_signals();
-        // pass_count = 0;
-        // fail_count = 0;
+        n_rst = 1'b1;
+        host_wr_req_a = 1'b0;
+        host_rd_req_a = 1'b0;
+        host_wdata_a = '0;
+        host_addr_a = '0;
+        host_wr_req_b = 1'b0;
+        host_rd_req_b = 1'b0;
+        host_wdata_b = '0;
+        host_addr_b = '0;
+        force_bus_en = 1'b0;
+        force_bus_bit = 1'b1;
 
-        // reset_dut();
-
-        // testcase = "Node A transmits one frame";
-        // $display("[%0t] %s", $time, testcase);
-
-        // @(negedge clk);
-        // tx_wr_en_a = 1'b1;
-        // tx_wr_id_a = 11'h321;
-        // tx_wr_dlc_a = 4'd2;
-        // tx_wr_data_a = 64'hABCD_0000_0000_0000;
-
-        // @(negedge clk);
-        // tx_wr_en_a = 1'b0;
-
-        // @(negedge clk);
-        // tx_request_a = 1'b1;
-        // @(negedge clk);
-        // tx_request_a = 1'b0;
-
-        // monitor_nodes(20000);
-
-        // if (saw_complete_a) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s tx_complete_a observed", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s tx_complete_a not observed", $time, testcase);
-        // end
-
-        // if (!saw_lost_a) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s no arbitration loss on node A", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s unexpected arbitration loss on node A", $time, testcase);
-        // end
-
-        // if (!tx_buf_valid_a) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s tx buffer A cleared after completion", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s tx buffer A still marked valid", $time, testcase);
-        // end
-
-        // testcase = "Simultaneous transmit request from both nodes";
-        // $display("[%0t] %s", $time, testcase);
-
-        // @(negedge clk);
-        // tx_wr_en_a = 1'b1;
-        // tx_wr_id_a = 11'h300;
-        // tx_wr_dlc_a = 4'd1;
-        // tx_wr_data_a = 64'hA500_0000_0000_0000;
-        // tx_wr_en_b = 1'b1;
-        // tx_wr_id_b = 11'h120;
-        // tx_wr_dlc_b = 4'd1;
-        // tx_wr_data_b = 64'h3C00_0000_0000_0000;
-
-        // @(negedge clk);
-        // tx_wr_en_a = 1'b0;
-        // tx_wr_en_b = 1'b0;
-
-        // @(negedge clk);
-        // tx_request_a = 1'b1;
-        // tx_request_b = 1'b1;
-        // @(negedge clk);
-        // tx_request_a = 1'b0;
-        // tx_request_b = 1'b0;
-
-        // monitor_nodes(25000);
-
-        // if (saw_complete_a || saw_complete_b) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s at least one tx_complete seen", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s no tx_complete seen", $time, testcase);
-        // end
-
-        // if (!(saw_lost_a && saw_lost_b)) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s no invalid double-loss condition", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s both nodes reported arbitration loss", $time, testcase);
-        // end
-
-        // testcase = "Pop receive buffers";
-        // $display("[%0t] %s", $time, testcase);
-
-        // pre_pop_a = rx_count_a;
-        // pre_pop_b = rx_count_b;
-
-        // @(negedge clk);
-        // rx_pop_a = 1'b1;
-        // rx_pop_b = 1'b1;
-        // @(negedge clk);
-        // rx_pop_a = 1'b0;
-        // rx_pop_b = 1'b0;
-
-        // repeat (20) @(posedge clk);
-
-        // if ((rx_count_a <= pre_pop_a) && (rx_count_b <= pre_pop_b)) begin
-        //     pass_count = pass_count + 1;
-        //     $display("[%0t] [PASS] %s pop did not increase queue depth", $time, testcase);
-        // end else begin
-        //     fail_count = fail_count + 1;
-        //     $display("[%0t] [FAIL] %s unexpected queue growth after pop", $time, testcase);
-        // end
-
-        // $display("[SUMMARY] tb_CAN_top pass=%0d fail=%0d", pass_count, fail_count);
-
-    
-        // TEST 1: Reset and basic register read/write
+        // T1: Basic Frame Transmission
         do_reset();
-        $display("[%0t] TEST 1: Register read/write", $time);
+        configure_node_a(3'b111);
+        configure_node_b(3'b111);
+        build_frame_stream(11'h1A3, 4'd4, 64'hDEADBEEF_00000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
+        send_frame_a(11'h1A3, 4'd4, 64'hDEADBEEF_00000000);
+        repeat (220000) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h02);
 
-        // Write and read back mode register
-        host_write(ADDR_MODE, 8'hA5);
-        host_read(ADDR_MODE, rd_data);
-        if (rd_data === 8'hA5)
-            $display("PASS: mode_cfg readback correct (0x%02X)", rd_data);
-        else
-            $display("FAIL: mode_cfg readback got 0x%02X expected 0xA5", rd_data);
+        // T2: Basic Frame Reception
+        do_reset();
+        configure_node_a(3'b111);
+        configure_node_b(3'b000);
+        build_frame_stream(11'h255, 4'd2, 64'hABCD_000000000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        repeat (220000) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h01);
 
-       
-        // TEST 2: IRQ enable and masking
-        $display("[%0t] TEST 2: IRQ enable register", $time);
-        // Enable all three IRQ sources (rx_ready, tx_complete, error)
-        host_write(ADDR_IRQ_ENABLE, 8'b00000111);
-        host_read(ADDR_IRQ_ENABLE, rd_data);
-        if (rd_data[2:0] === 3'b111)
-            $display("PASS: IRQ enable readback correct");
-        else
-            $display("FAIL: IRQ enable readback got 0x%02X", rd_data);
+        // T3: Arbitration Loss
+        do_reset();
+        configure_node_a(3'b111);
+        configure_node_b(3'b111);
+        load_frame_a(11'h6A5, 4'd1, 64'hAA00_000000000000);
+        load_frame_b(11'h123, 4'd1, 64'h5500_000000000000);
+        request_tx_both();
+        repeat (320000) @(posedge clk);
 
-        // TEST 3: Bit timing configuration
-        $display("[%0t] TEST 3: Bit timing config", $time);
-        // 500kbps example: brp=4, tq_per_bit=16, sample_tq=11, sjw=1
-        configure_bit_timing(
-            .brp       (10'd4),
-            .tq_per_bit(6'd16),
-            .sample_tq (6'd11),
-            .sjw       (6'd1),
-            .fd        (1'b0)
-        );
-        // Readback BRP low byte
-        host_read(ADDR_BT_BRP_LO, rd_data);
-        if (rd_data === 8'd4)
-            $display("PASS: bt_brp[7:0] readback correct");
-        else
-            $display("FAIL: bt_brp[7:0] got 0x%02X", rd_data);
+        // T4: Retransmission on Arbitration Loss
+        repeat (420000) @(posedge clk);
 
-        // Enable bt via mode register bit[0]
-        host_write(ADDR_MODE, 8'b00000001);
+        // T5: CRC Error Detection
+        do_reset();
+        configure_node_a(3'b100);
+        configure_node_b(3'b000);
+        build_frame_stream(11'h2C3, 4'd2, 64'h1234_000000000000, 1'b0, 1'b1, 1'b1, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        repeat (40) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h04);
 
-        // TEST 4: TX frame enqueue
-        $display("[%0t] TEST 4: TX frame enqueue", $time);
-        send_can_frame(
-            .id  (11'h1A3),
-            .dlc (4'd4),
-            .data(64'hDEADBEEF_00000000)
-        );
-        // tx_buf_valid should assert
-        repeat(2) @(posedge clk);
-        if (tx_buf_valid)
-            $display("PASS: tx_buf_valid asserted after enqueue");
-        else
-            $display("FAIL: tx_buf_valid not asserted");
+        // T6: Bit Stuff Error Detection
+        do_reset();
+        configure_node_a(3'b100);
+        configure_node_b(3'b000);
+        build_frame_stream(11'h000, 4'd0, 64'h0000_000000000000, 1'b0, 1'b0, 1'b0, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        repeat (40) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h04);
 
-        // TEST 5: IRQ on TX complete (bus_rx held recessive = bus idle)
-        $display("[%0t] TEST 5: TX complete IRQ", $time);
-        bus_rx = 1'b1; // keep bus recessive/idle
-        repeat(500) @(posedge clk);
-        wait_for_irq(irq_status);
-        if (irq_status[1])
-            $display("PASS: tx_complete IRQ bit set");
-        else
-            $display("NOTE: tx_complete IRQ not set yet (may need more cycles)");
-        clear_irq(8'b00000010); // clear tx_complete bit
+        // T7: Back-to-back Frame Handling
+        do_reset();
+        configure_node_a(3'b001);
+        configure_node_b(3'b000);
+        build_frame_stream(11'h111, 4'd2, 64'hA1B2_000000000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        build_frame_stream(11'h222, 4'd2, 64'hC3D4_000000000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        repeat (420000) @(posedge clk);
+        pop_rx_a();
+        repeat (20) @(posedge clk);
+        pop_rx_a();
+        repeat (4) @(posedge clk);
 
-        // TEST 6: RX path — inject a recessive bus pattern and check rx_ready IRQ
-        $display("[%0t] TEST 6: RX ready IRQ", $time);
-        // Drive bus_rx low to simulate SOF from another node
-        @(negedge clk);
-        bus_rx = 1'b0; // dominant = SOF
-        repeat(5) @(posedge clk);
-        bus_rx = 1'b1;
-        // Wait and check if rx_ready or error fires
-        repeat(20) @(posedge clk);
-        host_read(ADDR_IRQ_STATUS, irq_status);
-        $display("[%0t] IRQ status after bus activity = 0x%02X", $time, irq_status);
+        // T8: Interrupt Handling
+        do_reset();
+        configure_node_a(3'b000);
+        configure_node_b(3'b000);
+        send_frame_b(11'h155, 4'd1, 64'hAA00_000000000000);
+        repeat (120000) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h01);
 
-        // TEST 7: IRQ clear
-        $display("[%0t] TEST 7: IRQ clear", $time);
-        host_write(ADDR_IRQ_ENABLE, 8'b00000111);
-        // Force a read of status then clear all
-        host_read(ADDR_IRQ_STATUS, irq_status);
-        clear_irq(8'b00000111);
-        repeat(3) @(posedge clk);
-        if (!irq)
-            $display("PASS: IRQ deasserted after clear");
-        else
-            $display("FAIL: IRQ still asserted after clear");
+        host_write_a(ADDR_IRQ_ENABLE, 8'h02);
+        send_frame_b(11'h166, 4'd1, 64'hBB00_000000000000);
+        repeat (80000) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h01);
 
-        // TEST 8: RX buffer pop
-        $display("[%0t] TEST 8: RX buffer pop", $time);
-        if (!rx_buf_empty) begin
-            pop_rx_frame();
-            repeat(2) @(posedge clk);
-            $display("[%0t] rx_buf_empty=%0b after pop", $time, rx_buf_empty);
+        send_frame_a(11'h077, 4'd1, 64'hCC00_000000000000);
+        repeat (120000) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h02);
+        repeat (6) @(posedge clk);
+
+        host_write_a(ADDR_IRQ_ENABLE, 8'h04);
+        build_frame_stream(11'h299, 4'd1, 64'hDD00_000000000000, 1'b0, 1'b1, 1'b1, frame_bits, frame_len);
+        drive_external_bits(frame_bits, frame_len);
+        repeat (40) @(posedge clk);
+        host_read_a(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_a(8'h04);
+        repeat (6) @(posedge clk);
+
+        // T9: Flexible Data Rate
+        do_reset();
+        configure_node_a_custom(3'b111, 10'd3, 1'b1);
+        configure_node_b_custom(3'b111, 10'd3, 1'b1);
+        send_frame_a(11'h33A, 4'd4, 64'h01234567_00000000);
+        repeat (220000) @(posedge clk);
+
+        // T10: Phase Buffer & Compensation Delay Refinement
+        do_reset();
+        configure_node_a_custom(3'b001, 10'd3, 1'b0);
+        configure_node_b_custom(3'b000, 10'd3, 1'b0);
+        build_frame_stream(11'h2A5, 4'd4, 64'hA5A55AA5_00000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
+        find_transition_pair_index(frame_bits, frame_len, 24, edge_idx);
+        if (edge_idx >= 0) begin
+            drive_external_bits_with_phase_bump(frame_bits, frame_len, edge_idx, -1);
         end else begin
-            $display("NOTE: RX buffer empty, skipping pop test");
+            drive_external_bits(frame_bits, frame_len);
         end
-
-        // TEST 9: Write to read-only IRQ_STATUS (should be ignored)
-        $display("[%0t] TEST 9: Write to read-only register", $time);
-        host_read(ADDR_IRQ_STATUS, rd_data);
-        host_write(ADDR_IRQ_STATUS, 8'hFF); // should be ignored
-        host_read(ADDR_IRQ_STATUS, irq_status);
-        if (irq_status === rd_data)
-            $display("PASS: Read-only register not modified by write");
-        else
-            $display("FAIL: Read-only register was modified (got 0x%02X)", irq_status);
-
-        repeat(10) @(posedge clk);
-        $display("=== CAN_top Testbench Complete ===");
+        repeat (220000) @(posedge clk);
 
         $finish;
     end

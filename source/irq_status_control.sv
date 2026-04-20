@@ -17,21 +17,33 @@ module irq_status_control #(
 );
     logic [IRQ_W-1:0] next_irq_status;
     logic next_irq;
+    logic evt_rx_ready_d;
+    logic evt_tx_complete_d;
+    logic evt_error_d;
+    logic evt_rx_ready_pulse;
+    logic evt_tx_complete_pulse;
+    logic evt_error_pulse;
+
+    assign evt_rx_ready_pulse = evt_rx_ready && !evt_rx_ready_d;
+    assign evt_tx_complete_pulse = evt_tx_complete && !evt_tx_complete_d;
+    assign evt_error_pulse = evt_error && !evt_error_d;
 
     always_comb begin
-        next_irq_status = irq_status & ~irq_clear;
+        next_irq_status = irq_status;
 
-        if (evt_rx_ready) begin
+        if (evt_rx_ready_pulse) begin
             next_irq_status[0] = 1'b1;
         end
 
-        if (evt_tx_complete) begin
+        if (evt_tx_complete_pulse) begin
             next_irq_status[1] = 1'b1;
         end
 
-        if (evt_error) begin
+        if (evt_error_pulse) begin
             next_irq_status[2] = 1'b1;
         end
+
+        next_irq_status = next_irq_status & ~irq_clear;
 
         next_irq = |(next_irq_status & irq_enable_reg);
     end
@@ -40,9 +52,15 @@ module irq_status_control #(
         if (!n_rst) begin
             irq_status <= '0;
             irq <= 1'b0;
+            evt_rx_ready_d <= 1'b0;
+            evt_tx_complete_d <= 1'b0;
+            evt_error_d <= 1'b0;
         end else begin
             irq_status <= next_irq_status;
             irq <= next_irq;
+            evt_rx_ready_d <= evt_rx_ready;
+            evt_tx_complete_d <= evt_tx_complete;
+            evt_error_d <= evt_error;
         end
     end
 

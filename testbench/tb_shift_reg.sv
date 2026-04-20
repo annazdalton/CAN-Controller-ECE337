@@ -11,6 +11,12 @@ module tb_shift_reg ();
     end
 
     logic clk, n_rst;
+    logic shift_enable;
+    logic serial_in;
+    logic load_enable;
+    logic [7:0] parallel_in;
+    logic serial_out;
+    logic [7:0] parallel_out;
 
     // clockgen
     always begin
@@ -23,6 +29,10 @@ module tb_shift_reg ();
     task reset_dut;
     begin
         n_rst = 0;
+        shift_enable = 0;
+        serial_in = 0;
+        load_enable = 0;
+        parallel_in = '0;
         @(posedge clk);
         @(posedge clk);
         @(negedge clk);
@@ -44,4 +54,3 @@ module tb_shift_reg ();
 endmodule
 
 /* verilator coverage_on */
-

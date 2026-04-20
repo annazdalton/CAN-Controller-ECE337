@@ -11,6 +11,11 @@ module tb_flex_counter_CDL ();
     end
 
     logic clk, n_rst;
+    logic count_enable;
+    logic clear;
+    logic [7:0] rollover_val;
+    logic [7:0] count_out;
+    logic rollover_flag;
 
     // clockgen
     always begin
@@ -23,6 +28,9 @@ module tb_flex_counter_CDL ();
     task reset_dut;
     begin
         n_rst = 0;
+        count_enable = 0;
+        clear = 0;
+        rollover_val = 8'd3;
         @(posedge clk);
         @(posedge clk);
         @(negedge clk);
@@ -44,4 +52,3 @@ module tb_flex_counter_CDL ();
 endmodule
 
 /* verilator coverage_on */
-

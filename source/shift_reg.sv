@@ -10,7 +10,6 @@ module shift_reg #(
     output logic [SIZE-1 :0] parallel_out
 );
 
-    logic next_serial_out;
     logic [SIZE-1:0] next_parallel_out; 
 
     always_ff @(posedge clk, negedge n_rst) begin
@@ -28,7 +27,7 @@ module shift_reg #(
             if (MSB_FIRST == 0) begin //lsb first
                 next_parallel_out = {serial_in, parallel_out[SIZE - 1:1]};
             end else begin //msb first
-                next_parallel_out = {parallel_out[SIZE - 1:0], serial_in};
+                next_parallel_out = {parallel_out[SIZE - 2:0], serial_in};
             end
         end else begin // hold old values
             next_parallel_out = parallel_out;

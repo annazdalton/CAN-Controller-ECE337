@@ -44,6 +44,7 @@ module host_cfg_top #(
     output logic [5:0] bt_tq_per_bit,
     output logic [5:0] bt_sample_tq,
     output logic [5:0] bt_sjw,
+    output logic bt_fd,
 
     //rx datapath outputs
     output logic rx_pop_pulse,
@@ -83,13 +84,7 @@ host_interface #(.DATA_W(DATA_W), .ADDR_W(ADDR_W)) top_hi (
     .reg_wr_en(reg_wr_en),
     .reg_rd_en(reg_rd_en),
     .reg_wdata(reg_wdata),
-    .reg_addr(reg_addr),
-    .rx_head_id (rx_head_id),
-    .rx_head_dlc (rx_head_dlc),
-    .rx_head_data (rx_head_data),
-    .rx_buf_empty (rx_buf_empty),
-    .rx_buf_full (rx_buf_full),
-    .rx_count (rx_count)
+    .reg_addr(reg_addr)
 );
 
 register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
@@ -100,6 +95,12 @@ register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
     .reg_wdata(reg_wdata),
     .reg_addr(reg_addr),
     .irq_status(irq_status),
+    .rx_head_id (rx_head_id),
+    .rx_head_dlc (rx_head_dlc),
+    .rx_head_data (rx_head_data),
+    .rx_buf_empty (rx_buf_empty),
+    .rx_buf_full (rx_buf_full),
+    .rx_count (rx_count),
     .reg_rdata(reg_rdata),
     .wr_accept(wr_accept),
     .rd_valid(rd_valid),
@@ -116,7 +117,8 @@ register_bank #(.DATA_W(DATA_W), .ADDR_W(ADDR_W), .IRQ_W(IRQ_W)) top_rb (
     .bt_brp (bt_brp),
     .bt_tq_per_bit(bt_tq_per_bit),
     .bt_sample_tq (bt_sample_tq),
-    .bt_sjw (bt_sjw)
+    .bt_sjw (bt_sjw),
+    .bt_fd (bt_fd)
 );
 
 irq_status_control #(.IRQ_W(IRQ_W)) top_irq_sc (

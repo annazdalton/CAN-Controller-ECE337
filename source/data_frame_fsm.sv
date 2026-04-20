@@ -10,6 +10,7 @@ module data_frame_fsm #(
     input logic [10:0] identifier,
     input logic [3:0] data_len,
     input logic [63:0] data_field,
+    input logic fd_enable,
 
     output logic [110:0] data_frame,
     output logic [7:0] frame_len,
@@ -40,7 +41,7 @@ module data_frame_fsm #(
     logic [6:0] data_bits;
     logic [7:0] payload_bits;
     logic [7:0] total_bits;
-    logic [7:0] crc_start_idx;
+    logic [6:0] crc_start_idx;
 
     logic [6:0] build_idx;
     logic [6:0] next_build_idx;
@@ -54,7 +55,7 @@ module data_frame_fsm #(
     assign data_bits = {len_reg, 3'b000};
     assign payload_bits = 8'd34 + {1'b0, data_bits};
     assign total_bits = payload_bits + 8'd10;
-    assign crc_start_idx = 8'd19 + {1'b0, data_bits};
+    assign crc_start_idx = 7'd19 + data_bits;
 
     assign data_frame = frame_reg;
     assign frame_len = total_bits;
@@ -69,7 +70,7 @@ module data_frame_fsm #(
         .identifier(id_reg),
         .rtr_bit(1'b0),
         .ide_bit(1'b0),
-        .r0_bit(1'b0),
+        .r0_bit(fd_enable),
         .dlc(len_reg),
         .data(data_reg),
         .done(crc_done),
@@ -83,8 +84,10 @@ module data_frame_fsm #(
             bit_to_write = 1'b0;
         end else if ((build_idx >= 7'd1) && (build_idx <= 7'd11)) begin
             bit_to_write = id_reg[11 - build_idx];
-        end else if ((build_idx == 7'd12) || (build_idx == 7'd13) || (build_idx == 7'd14)) begin
+        end else if ((build_idx == 7'd12) || (build_idx == 7'd13)) begin
             bit_to_write = 1'b0;
+        end else if (build_idx == 7'd14) begin
+            bit_to_write = fd_enable;
         end else if ((build_idx >= 7'd15) && (build_idx <= 7'd18)) begin
             bit_to_write = len_reg[18 - build_idx];
         end else if ((build_idx >= 7'd19) && (build_idx < crc_start_idx[6:0])) begin

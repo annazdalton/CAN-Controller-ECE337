@@ -8,7 +8,7 @@ filesets:
             - "source/error_frame_fsm.sv"
         file_type: systemVerilogSource
         depend:
-            - "u337mg005:ece337:flex_counter:1.0.0"
+            - "u337mg005:ece337:flex_counter_CDL:1.0.0"
             - "u337mg005:ece337:shift_reg:1.0.0"
 
     synth:

@@ -40,6 +40,7 @@ module can_rx_path #(
     logic destuff_stuff_error;
 
     logic parser_start;
+    logic parser_bit_valid;
     logic parser_done;
     logic parser_crc_error;
     logic parser_format_error;
@@ -74,6 +75,10 @@ module can_rx_path #(
     logic next_crc_err;
     logic next_stf_err;
     logic next_error_flag;
+    logic frame_error_seen;
+    logic next_frame_error_seen;
+    logic drop_first_parser_bit;
+    logic next_drop_first_parser_bit;
 
     bit_destuff u_bit_destuff (
         .clk(clk),
@@ -92,7 +97,7 @@ module can_rx_path #(
         .clk(clk),
         .n_rst(n_rst),
         .start(parser_start),
-        .bit_valid(destuff_out_valid && (state == RX_ACTIVE)),
+        .bit_valid(parser_bit_valid),
         .bit_in(destuff_out_bit),
         .busy(),
         .payload_len_valid(parser_payload_len_valid),
@@ -107,6 +112,8 @@ module can_rx_path #(
         .frame_dlc(parser_dlc),
         .frame_data(parser_data)
     );
+
+    assign parser_bit_valid = destuff_out_valid && (state == RX_ACTIVE) && !drop_first_parser_bit;
 
     always_comb begin
         next_state = state;
@@ -130,6 +137,8 @@ module can_rx_path #(
         next_crc_err = 1'b0;
         next_stf_err = 1'b0;
         next_error_flag = 1'b0;
+        next_frame_error_seen = frame_error_seen;
+        next_drop_first_parser_bit = drop_first_parser_bit;
 
         case (state)
             RX_IDLE: begin
@@ -141,12 +150,15 @@ module can_rx_path #(
                 next_stuff_run_count = 3'd0;
                 next_stuff_expect = 1'b0;
                 next_pending_disable = 1'b0;
+                next_frame_error_seen = 1'b0;
+                next_drop_first_parser_bit = 1'b0;
 
                 if (!tx_en && hard_sync_pulse) begin
                     next_state = RX_ACTIVE;
                     next_rx_en = 1'b1;
                     next_destuff_enable = 1'b1;
                     parser_start = 1'b1;
+                    next_drop_first_parser_bit = 1'b1;
                 end
             end
 
@@ -157,6 +169,11 @@ module can_rx_path #(
                 if (destuff_stuff_error) begin
                     next_stf_err = 1'b1;
                     next_error_flag = 1'b1;
+                    next_frame_error_seen = 1'b1;
+                end
+
+                if (destuff_out_valid && drop_first_parser_bit) begin
+                    next_drop_first_parser_bit = 1'b0;
                 end
 
                 if (sample_tick && destuff_enable) begin
@@ -164,6 +181,7 @@ module can_rx_path #(
                         if (sampled_bit == stuff_last_bit) begin
                             next_stf_err = 1'b1;
                             next_error_flag = 1'b1;
+                            next_frame_error_seen = 1'b1;
                         end else begin
                             next_stuff_expect = 1'b0;
                             next_stuff_have_last = 1'b1;
@@ -203,7 +221,7 @@ module can_rx_path #(
                     next_rx_en = 1'b0;
                     next_fd = 1'b0;
 
-                    if (parser_format_error) begin
+                    if (parser_format_error || frame_error_seen) begin
                         next_error_flag = 1'b1;
                     end else begin
                         if (parser_crc_error) begin
@@ -246,6 +264,8 @@ module can_rx_path #(
             crc_err <= 1'b0;
             stf_err <= 1'b0;
             error_flag <= 1'b0;
+            frame_error_seen <= 1'b0;
+            drop_first_parser_bit <= 1'b0;
         end else begin
             state <= next_state;
             destuff_enable <= next_destuff_enable;
@@ -264,6 +284,8 @@ module can_rx_path #(
             crc_err <= next_crc_err;
             stf_err <= next_stf_err;
             error_flag <= next_error_flag;
+            frame_error_seen <= next_frame_error_seen;
+            drop_first_parser_bit <= next_drop_first_parser_bit;
         end
     end
 

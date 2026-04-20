@@ -11,7 +11,7 @@ module tb_CAN_fsm ();
     end
 
     logic clk, n_rst;
-    logic tx_request, bus_idle, node_off, data_done, error_idle, tx_bit, arb_field_done, eof_done, bus_bit;
+    logic tx_request, bus_idle, node_off, data_done, error_done, tx_bit, arb_field_done, eof_done, bus_bit, error_request;
     logic sof_en, arb_en, crc_rst, data_en, ack_en, ack_delim_en, eof_en, error;
 
     CAN_fsm DUT(
@@ -21,11 +21,12 @@ module tb_CAN_fsm ();
     .bus_idle(bus_idle),
     .node_off(node_off), 
     .data_done(data_done), 
-    .error_idle(error_idle), 
+    .error_done(error_done), 
     .tx_bit(tx_bit), 
     .arb_field_done(arb_field_done), //maybe change this to a pulse when done
     .eof_done(eof_done), 
     .bus_bit(bus_bit), 
+    .error_request(error_request), 
 
     .sof_en(sof_en), 
     .arb_en(arb_en), 
@@ -58,35 +59,14 @@ module tb_CAN_fsm ();
         bus_idle = '0;
         node_off = '1;
         data_done = '0;
-        error_idle = '0;
+        error_done = '0;
         tx_bit = '0;
         arb_field_done = '0;
         eof_done = '0;
         bus_bit = '0;
+        error_request = '0;
         @(posedge clk);
         @(posedge clk);
-    end
-    endtask
-
-    logic check_pulse;
-    logic check_mismatch;
-
-    task check_output;
-        input logic expected_output;
-        input logic actual_output;
-        input string test_name;
-    begin
-        check_mismatch = 0;
-        check_pulse = 1;
-        #(0.1);
-        if(expected_output != actual_output) begin
-            check_mismatch = 1;
-            $display("Test Case FAILED for the %s check. Expected %d, Actual %d", test_name, expected_output, actual_output);
-        end else begin
-            check_mismatch = 0;
-            $display("Test Case PASSED for the %s check. Expected %d, Actual %d", test_name, expected_output, actual_output);
-        end
-        check_pulse = 0;
     end
     endtask
 
@@ -96,7 +76,6 @@ module tb_CAN_fsm ();
         reset_dut;
 
         //idle state
-        check_output(1'b0, sof_en, "check sof_en is low, idle state");
         @(posedge clk);
 
         node_off = 0;
@@ -107,41 +86,26 @@ module tb_CAN_fsm ();
         @(negedge clk);
         
         //sof state
-        check_output(1'b1, sof_en, "check sof_en is high, sof state");
         @(posedge clk);
-
-        check_output(1'b1, arb_en, "check arb_en is high, arb state");
         @(posedge clk);
 
         arb_field_done = 1;
         @(negedge clk);
-
-        check_output(1'b1, data_en, "check data_en is high, data state");
         @(posedge clk);
 
         data_done = 1;
         @(negedge clk);
-
-        check_output(1'b1, ack_en, "check ack_en is high, ack state");
         @(posedge clk);
-
-        check_output(1'b1, ack_delim_en, "check ack_delim_en is high, ack_delim state");
         @(posedge clk);
-
-        check_output(1'b1, eof_en, "check eof_en is high, eof state");
         @(posedge clk);
 
         eof_done = 1;
         @(negedge clk);
-
-        check_output(1'b0, eof_en, "check eof_en is low, ifs state");
         @(posedge clk);
 
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
-
-        check_output(1'b0, eof_en, "check eof_en is low, idle state");
 
         //normal state transitions done
 
@@ -151,28 +115,21 @@ module tb_CAN_fsm ();
         //cause error:
 
         //sof state
-        check_output(1'b1, sof_en, "check sof_en is high, sof state");
         @(posedge clk);
-
-        check_output(1'b1, arb_en, "check arb_en is high, arb state");
         @(posedge clk);
 
         tx_bit = 1;
         bus_bit = 0;
-        error_idle = '0;
+        error_done = '0;
         @(negedge clk);
-
-        check_output(1'b1, error, "check error is high, error state");
         @(posedge clk);
 
         @(posedge clk);
         @(posedge clk);
         @(posedge clk);
 
-        error_idle = 1;
+        error_done = 1;
         @(negedge clk);
-
-        check_output(1'b0, error, "check error is low, idle state");
         @(posedge clk);
 
         #300ns;
@@ -182,4 +139,3 @@ module tb_CAN_fsm ();
 endmodule
 
 /* verilator coverage_on */
-

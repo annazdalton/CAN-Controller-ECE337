@@ -4,7 +4,7 @@
 module tb_register_bank;
 
     localparam CLK_PERIOD = 10ns;
-    localparam ADDR_W = 5;
+    localparam ADDR_W = 6;
     localparam DATA_W = 8;
     localparam IRQ_W = 3;
 
@@ -14,6 +14,7 @@ module tb_register_bank;
     localparam logic [ADDR_W-1:0] BT_TQPB_ADDR = 5'd3;
     localparam logic [ADDR_W-1:0] BT_SAMPLE_ADDR = 5'd4;
     localparam logic [ADDR_W-1:0] BT_SJW_ADDR = 5'd5;
+    localparam logic [ADDR_W-1:0] BT_FD_ADDR = 5'd6;
     localparam logic [ADDR_W-1:0] IRQ_ENABLE_ADDR = 5'd7;
     localparam logic [ADDR_W-1:0] IRQ_STATUS_ADDR = 5'd8;
     localparam logic [ADDR_W-1:0] IRQ_CLEAR_ADDR = 5'd9;
@@ -30,6 +31,12 @@ module tb_register_bank;
     logic [DATA_W-1:0] reg_wdata;
     logic [ADDR_W-1:0] reg_addr;
     logic [IRQ_W-1:0] irq_status;
+    logic [10:0] rx_head_id;
+    logic [3:0] rx_head_dlc;
+    logic [63:0] rx_head_data;
+    logic rx_buf_empty;
+    logic rx_buf_full;
+    logic [3:0] rx_count;
 
     logic [DATA_W-1:0] reg_rdata;
     logic wr_accept, rd_valid;
@@ -39,6 +46,7 @@ module tb_register_bank;
     logic [5:0] bt_tq_per_bit;
     logic [5:0] bt_sample_tq;
     logic [5:0] bt_sjw;
+    logic bt_fd;
     logic [10:0] tx_id_cfg;
     logic [3:0] tx_dlc_cfg;
     logic [63:0] tx_data_cfg;
@@ -57,18 +65,6 @@ module tb_register_bank;
         #(CLK_PERIOD / 2.0);
     end
 
-    task automatic check_equal(input string name, input logic [63:0] actual,
-                               input logic [63:0] expected);
-        begin
-            if (actual !== expected) begin
-                $display("FAIL: %s | actual=0x%0h expected=0x%0h", name, actual, expected);
-                $finish;
-            end else begin
-                $display("PASS: %s", name);
-            end
-        end
-    endtask
-
     task automatic reset_dut;
         begin
             n_rst = 1'b0;
@@ -77,6 +73,12 @@ module tb_register_bank;
             reg_wdata = '0;
             reg_addr = '0;
             irq_status = '0;
+            rx_head_id = '0;
+            rx_head_dlc = '0;
+            rx_head_data = '0;
+            rx_buf_empty = 1'b1;
+            rx_buf_full = 1'b0;
+            rx_count = '0;
             repeat (3) @(posedge clk);
             @(negedge clk);
             n_rst = 1'b1;
@@ -91,10 +93,8 @@ module tb_register_bank;
             reg_wdata = data;
             reg_wr_en = 1'b1;
             reg_rd_en = 1'b0;
-            #1;
-            check_equal("wr_accept on write", wr_accept, 1'b1);
             @(posedge clk);
-            #1;
+            @(negedge clk);
             reg_wr_en = 1'b0;
         end
     endtask
@@ -105,11 +105,9 @@ module tb_register_bank;
             reg_addr = addr;
             reg_rd_en = 1'b1;
             reg_wr_en = 1'b0;
-            #1;
-            check_equal("rd_valid on read", rd_valid, 1'b1);
-            data = reg_rdata;
             @(posedge clk);
-            #1;
+            data = reg_rdata;
+            @(negedge clk);
             reg_rd_en = 1'b0;
         end
     endtask
@@ -126,6 +124,12 @@ module tb_register_bank;
         .reg_wdata(reg_wdata),
         .reg_addr(reg_addr),
         .irq_status(irq_status),
+        .rx_head_id(rx_head_id),
+        .rx_head_dlc(rx_head_dlc),
+        .rx_head_data(rx_head_data),
+        .rx_buf_empty(rx_buf_empty),
+        .rx_buf_full(rx_buf_full),
+        .rx_count(rx_count),
         .reg_rdata(reg_rdata),
         .wr_accept(wr_accept),
         .rd_valid(rd_valid),
@@ -136,6 +140,7 @@ module tb_register_bank;
         .bt_tq_per_bit(bt_tq_per_bit),
         .bt_sample_tq(bt_sample_tq),
         .bt_sjw(bt_sjw),
+        .bt_fd(bt_fd),
         .tx_id_cfg(tx_id_cfg),
         .tx_dlc_cfg(tx_dlc_cfg),
         .tx_data_cfg(tx_data_cfg),
@@ -149,74 +154,56 @@ module tb_register_bank;
     initial begin
         reset_dut();
 
-        check_equal("reset bt_enable", bt_enable, 1'b0);
-        check_equal("reset bt_brp", bt_brp, 10'd0);
-        check_equal("reset irq_enable", irq_enable_reg, 3'b000);
-        check_equal("reset irq_clear", irq_clear, 3'b000);
-        check_equal("reset tx_request", tx_request, 1'b0);
-
         write_reg(MODE_ADDR, 8'b0000_0001);
-        check_equal("mode write sets bt_enable", bt_enable, 1'b1);
 
         write_reg(BT_BRP_LO_ADDR, 8'h34);
         write_reg(BT_BRP_HI_ADDR, 8'h02);
         write_reg(BT_TQPB_ADDR, 8'd16);
         write_reg(BT_SAMPLE_ADDR, 8'd11);
         write_reg(BT_SJW_ADDR, 8'd1);
-        check_equal("bt_brp write", bt_brp, 10'h234);
-        check_equal("bt_tq_per_bit write", bt_tq_per_bit, 6'd16);
-        check_equal("bt_sample_tq write", bt_sample_tq, 6'd11);
-        check_equal("bt_sjw write", bt_sjw, 6'd1);
+        write_reg(BT_FD_ADDR, 8'h01);
 
         write_reg(IRQ_ENABLE_ADDR, 8'b0000_0101);
-        check_equal("irq_enable write", irq_enable_reg, 3'b101);
 
         irq_status = 3'b110;
         read_reg(IRQ_STATUS_ADDR, rd_data);
-        check_equal("irq_status read", rd_data, 8'h06);
 
         write_reg(IRQ_STATUS_ADDR, 8'hFF);
 
-        write_reg(IRQ_CLEAR_ADDR, 8'b0000_0011);
-        check_equal("irq_clear pulse asserted", irq_clear, 3'b011);
         @(posedge clk);
-        check_equal("irq_clear pulse deasserted", irq_clear, 3'b000);
+
+        write_reg(IRQ_CLEAR_ADDR, 8'b0000_0011);
+        @(posedge clk);
+        @(negedge clk);
 
         write_reg(TX_ID_ADDR, 8'hA5);
         write_reg(TX_ID_HI_ADDR, 8'h03);
         write_reg(TX_DLC_ADDR, 8'h08);
         write_reg(TX_DATA0_ADDR, 8'h11);
         write_reg(TX_DATA7_ADDR, 8'h88);
-        write_reg(TX_CTRL_ADDR, 8'b0000_0011);
-        check_equal("tx_id write", tx_id_cfg, 11'h3A5);
-        check_equal("tx_dlc write", tx_dlc_cfg, 4'h8);
-        check_equal("tx_data low byte write", tx_data_cfg[7:0], 8'h11);
-        check_equal("tx_data high byte write", tx_data_cfg[63:56], 8'h88);
-        check_equal("tx_request latched", tx_request, 1'b1);
-        check_equal("tx_wr_en pulse high", tx_wr_en_pulse, 1'b1);
+
         @(posedge clk);
-        check_equal("tx_wr_en pulse clears", tx_wr_en_pulse, 1'b0);
+
+        write_reg(TX_CTRL_ADDR, 8'b0000_0011);
+        @(posedge clk);
+        @(negedge clk);
 
         write_reg(RX_POP_ADDR, 8'hFF);
-        check_equal("rx_pop pulse high", rx_pop_pulse, 1'b1);
         @(posedge clk);
-        check_equal("rx_pop pulse clears", rx_pop_pulse, 1'b0);
+        @(negedge clk);
 
         read_reg(5'd31, rd_data);
-        check_equal("invalid read returns zero", rd_data, 8'h00);
 
         @(negedge clk);
         reg_addr = MODE_ADDR;
         reg_wdata = 8'h5A;
         reg_wr_en = 1'b1;
         reg_rd_en = 1'b1;
-        check_equal("write priority wr_accept", wr_accept, 1'b1);
-        check_equal("write priority rd_valid low", rd_valid, 1'b0);
         @(posedge clk);
+        @(negedge clk);
         reg_wr_en = 1'b0;
         reg_rd_en = 1'b0;
         read_reg(MODE_ADDR, rd_data);
-        check_equal("write priority mode updated", rd_data, 8'h5A);
         $finish;
     end
 

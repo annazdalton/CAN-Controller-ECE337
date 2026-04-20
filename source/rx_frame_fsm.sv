@@ -46,7 +46,7 @@ module rx_frame_fsm #(
         .identifier(frame_id),
         .rtr_bit(1'b0),
         .ide_bit(1'b0),
-        .r0_bit(1'b0),
+        .r0_bit(frame_fdf),
         .dlc(frame_dlc),
         .data(frame_data),
         .done(crc_calc_done),

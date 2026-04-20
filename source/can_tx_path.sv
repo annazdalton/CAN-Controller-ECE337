@@ -15,6 +15,7 @@ module can_tx_path #(
     input logic [3:0] tx_buf_dlc,
     input logic [63:0] tx_buf_data,
     input logic tx_request,
+    input logic tx_fd_cfg,
 
     //ports for error frame fsm
     input  logic error,
@@ -28,7 +29,8 @@ module can_tx_path #(
     output logic arb_lost,
     output logic msg_due_tx,
     output logic tx_buf_clr,
-    output logic listen_after_arb
+    output logic listen_after_arb,
+    output logic tx_fd_phase
 );
 
     typedef enum logic [2:0] {
@@ -67,6 +69,17 @@ module can_tx_path #(
     logic [7:0] tx_idx;
     logic [7:0] next_tx_idx;
 
+    logic tx_fd_reg;
+    logic next_tx_fd_reg;
+    logic [7:0] fd_start_idx_reg;
+    logic [7:0] next_fd_start_idx_reg;
+    logic [7:0] fd_end_idx_reg;
+    logic [7:0] next_fd_end_idx_reg;
+    logic fd_start_seen;
+    logic next_fd_start_seen;
+    logic fd_end_seen;
+    logic next_fd_end_seen;
+
     logic bs_enable;
     logic bs_in_valid;
     logic bs_in_bit;
@@ -88,12 +101,15 @@ module can_tx_path #(
     logic arb_bus_idle;
     logic arb_active;
     logic arb_tx_bit;
+    logic arb_loss_now;
 
     assign bs_in_valid = (state == TX_STUFF) && ({1'b0, stuff_src_idx} < frame_len_reg);
     assign bs_in_bit = frame_bits_reg[stuff_src_idx];
     assign bs_enable = (state == TX_STUFF) && ({1'b0, stuff_src_idx} < stuff_len_reg);
 
     assign arb_tx_bit = ((state == TX_SEND) && (tx_idx < stuffed_len)) ? stuffed_bits[tx_idx] : 1'b1;
+    assign arb_loss_now = (state == TX_SEND) && (tx_idx < stuffed_len) && (tx_idx < 8'd12) && (stuffed_bits[tx_idx] == 1'b1) && (can_rx == 1'b0);
+    assign tx_fd_phase = (state == TX_SEND) && tx_en && tx_fd_reg && (tx_idx >= fd_start_idx_reg) && (tx_idx < fd_end_idx_reg);
 
     logic error_serial_out;
     logic error_frame_done;
@@ -109,6 +125,8 @@ module can_tx_path #(
         .error_done (error_frame_done)
     );
 
+    assign error_done = error_frame_done;
+
     data_frame_fsm u_data_frame_fsm (
         .clk(clk),
         .n_rst(n_rst),
@@ -116,6 +134,7 @@ module can_tx_path #(
         .identifier(tx_buf_id),
         .data_len(tx_buf_dlc),
         .data_field(tx_buf_data),
+        .fd_enable(tx_fd_reg),
         .data_frame(frame_bits),
         .frame_len(frame_len),
         .stuff_len(stuff_len),
@@ -175,6 +194,11 @@ module can_tx_path #(
         next_stuffed_len = stuffed_len;
         next_stuff_src_idx = stuff_src_idx;
         next_tx_idx = tx_idx;
+        next_tx_fd_reg = tx_fd_reg;
+        next_fd_start_idx_reg = fd_start_idx_reg;
+        next_fd_end_idx_reg = fd_end_idx_reg;
+        next_fd_start_seen = fd_start_seen;
+        next_fd_end_seen = fd_end_seen;
 
         frame_start = 1'b0;
 
@@ -194,6 +218,7 @@ module can_tx_path #(
                 end
 
                 if (next_msg_due_tx && tx_buf_valid && bus_idle && arb_bus_idle) begin
+                    next_tx_fd_reg = tx_fd_cfg;
                     next_state = TX_BUILD_START;
                 end
             end
@@ -211,6 +236,10 @@ module can_tx_path #(
                     next_stuffed_bits = '0;
                     next_stuffed_len = 8'd0;
                     next_stuff_src_idx = 7'd0;
+                    next_fd_start_idx_reg = 8'd0;
+                    next_fd_end_idx_reg = 8'd0;
+                    next_fd_start_seen = 1'b0;
+                    next_fd_end_seen = 1'b0;
                     next_state = TX_STUFF;
                 end
             end
@@ -219,6 +248,17 @@ module can_tx_path #(
                 if (bs_out_valid && (stuffed_len < MAX_STUFFED_BITS[7:0])) begin
                     next_stuffed_bits[stuffed_len] = bs_out_bit;
                     next_stuffed_len = stuffed_len + 1'b1;
+
+                    if (tx_fd_reg) begin
+                        if (!fd_start_seen && bs_in_valid && bs_in_ready && ({1'b0, stuff_src_idx} >= 8'd19)) begin
+                            next_fd_start_idx_reg = stuffed_len;
+                            next_fd_start_seen = 1'b1;
+                        end
+                        if (!fd_end_seen && bs_in_valid && bs_in_ready && ({1'b0, stuff_src_idx} >= stuff_len_reg)) begin
+                            next_fd_end_idx_reg = stuffed_len;
+                            next_fd_end_seen = 1'b1;
+                        end
+                    end
                 end
 
                 if (bs_in_valid && bs_in_ready) begin
@@ -230,6 +270,22 @@ module can_tx_path #(
                     next_tx_idx = 8'd0;
                     next_tx_en = 1'b0;
                     next_listen_after_arb = 1'b0;
+
+                    if (tx_fd_reg) begin
+                        if (!fd_start_seen) begin
+                            next_fd_start_idx_reg = 8'd0;
+                            next_fd_start_seen = 1'b1;
+                        end
+                        if (!fd_end_seen) begin
+                            next_fd_end_idx_reg = stuffed_len;
+                            next_fd_end_seen = 1'b1;
+                        end
+                    end else begin
+                        next_fd_start_idx_reg = 8'd0;
+                        next_fd_end_idx_reg = 8'd0;
+                        next_fd_start_seen = 1'b0;
+                        next_fd_end_seen = 1'b0;
+                    end
                 end
             end
 
@@ -245,7 +301,7 @@ module can_tx_path #(
                 next_tx_en = 1'b1;
 
                 if (bit_tick && error_frame_done) begin
-                    if (arb_lost_det) begin
+                    if (arb_loss_now) begin
                         next_state = TX_IDLE;
                         next_tx_en = 1'b0;
                         next_arb_lost = 1'b1;
@@ -280,6 +336,11 @@ module can_tx_path #(
             stuffed_len <= 8'd0;
             stuff_src_idx <= 7'd0;
             tx_idx <= 8'd0;
+            tx_fd_reg <= 1'b0;
+            fd_start_idx_reg <= 8'd0;
+            fd_end_idx_reg <= 8'd0;
+            fd_start_seen <= 1'b0;
+            fd_end_seen <= 1'b0;
             tx_en <= 1'b0;
             tx_complete <= 1'b0;
             arb_lost <= 1'b0;
@@ -295,6 +356,11 @@ module can_tx_path #(
             stuffed_len <= next_stuffed_len;
             stuff_src_idx <= next_stuff_src_idx;
             tx_idx <= next_tx_idx;
+            tx_fd_reg <= next_tx_fd_reg;
+            fd_start_idx_reg <= next_fd_start_idx_reg;
+            fd_end_idx_reg <= next_fd_end_idx_reg;
+            fd_start_seen <= next_fd_start_seen;
+            fd_end_seen <= next_fd_end_seen;
             tx_en <= next_tx_en;
             tx_complete <= next_tx_complete;
             arb_lost <= next_arb_lost;

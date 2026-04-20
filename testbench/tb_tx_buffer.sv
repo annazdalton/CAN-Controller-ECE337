@@ -11,6 +11,15 @@ module tb_tx_buffer ();
     end
 
     logic clk, n_rst;
+    logic wr_en;
+    logic clr_valid;
+    logic [10:0] wr_id;
+    logic [3:0] wr_dlc;
+    logic [63:0] wr_data;
+    logic valid;
+    logic [10:0] id_out;
+    logic [3:0] dlc_out;
+    logic [63:0] data_out;
 
     // clockgen
     always begin
@@ -23,6 +32,11 @@ module tb_tx_buffer ();
     task reset_dut;
     begin
         n_rst = 0;
+        wr_en = 0;
+        clr_valid = 0;
+        wr_id = '0;
+        wr_dlc = '0;
+        wr_data = '0;
         @(posedge clk);
         @(posedge clk);
         @(negedge clk);
@@ -44,4 +58,3 @@ module tb_tx_buffer ();
 endmodule
 
 /* verilator coverage_on */
-

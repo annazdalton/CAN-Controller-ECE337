@@ -11,6 +11,16 @@ module tb_CAN_error_counters ();
     end
 
     logic clk, n_rst;
+    logic tx_error;
+    logic tx_success;
+    logic rx_error;
+    logic rx_success;
+    logic bus_off_i;
+    logic bus_rx;
+    logic error_active;
+    logic error_passive;
+    logic bus_off;
+    logic recovery_done;
 
     // clockgen
     always begin
@@ -23,6 +33,12 @@ module tb_CAN_error_counters ();
     task reset_dut;
     begin
         n_rst = 0;
+        tx_error = 0;
+        tx_success = 0;
+        rx_error = 0;
+        rx_success = 0;
+        bus_off_i = 0;
+        bus_rx = 1;
         @(posedge clk);
         @(posedge clk);
         @(negedge clk);
@@ -44,4 +60,3 @@ module tb_CAN_error_counters ();
 endmodule
 
 /* verilator coverage_on */
-
