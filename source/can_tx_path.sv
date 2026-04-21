@@ -93,6 +93,9 @@ module can_tx_path #(
     logic next_tx_buf_clr;
     logic next_listen_after_arb;
     logic next_tx_en;
+    logic tx_request_d;
+    logic next_tx_request_d;
+    logic tx_request_rise;
 
     logic arb_is_transmitter;
     logic arb_is_receiver;
@@ -110,6 +113,7 @@ module can_tx_path #(
     assign arb_tx_bit = ((state == TX_SEND) && (tx_idx < stuffed_len)) ? stuffed_bits[tx_idx] : 1'b1;
     assign arb_loss_now = (state == TX_SEND) && (tx_idx < stuffed_len) && (tx_idx < 8'd12) && (stuffed_bits[tx_idx] == 1'b1) && (can_rx == 1'b0);
     assign tx_fd_phase = (state == TX_SEND) && tx_en && tx_fd_reg && (tx_idx >= fd_start_idx_reg) && (tx_idx < fd_end_idx_reg);
+    assign tx_request_rise = tx_request && !tx_request_d;
 
     logic error_serial_out;
     logic error_frame_done;
@@ -208,16 +212,17 @@ module can_tx_path #(
         next_msg_due_tx = msg_due_tx;
         next_listen_after_arb = listen_after_arb;
         next_tx_en = tx_en;
+        next_tx_request_d = tx_request;
 
         case (state)
             TX_IDLE: begin
                 next_tx_en = 1'b0;
 
-                if (tx_buf_valid && tx_request) begin
+                if (tx_buf_valid && tx_request_rise) begin
                     next_msg_due_tx = 1'b1;
                 end
 
-                if (next_msg_due_tx && tx_buf_valid && bus_idle && arb_bus_idle) begin
+                if (next_msg_due_tx && tx_buf_valid) begin
                     next_tx_fd_reg = tx_fd_cfg;
                     next_state = TX_BUILD_START;
                 end
@@ -291,7 +296,7 @@ module can_tx_path #(
 
             TX_WAIT_BIT: begin
                 next_tx_en = 1'b0;
-                if (bit_tick) begin
+                if (bus_idle && arb_bus_idle && bit_tick) begin
                     next_state = TX_SEND;
                     next_tx_en = 1'b1;
                 end
@@ -347,6 +352,7 @@ module can_tx_path #(
             msg_due_tx <= 1'b0;
             tx_buf_clr <= 1'b0;
             listen_after_arb <= 1'b0;
+            tx_request_d <= 1'b0;
         end else begin
             state <= next_state;
             frame_bits_reg <= next_frame_bits_reg;
@@ -367,6 +373,7 @@ module can_tx_path #(
             msg_due_tx <= next_msg_due_tx;
             tx_buf_clr <= next_tx_buf_clr;
             listen_after_arb <= next_listen_after_arb;
+            tx_request_d <= next_tx_request_d;
         end
     end
 

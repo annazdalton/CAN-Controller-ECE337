@@ -49,6 +49,7 @@ module CAN_top #(
     logic tx_buf_clr;
 
     logic bus_idle;
+    logic bus_idle_count_en;
 
     logic [10:0] tx_buf_id;
     logic [3:0] tx_buf_dlc;
@@ -109,7 +110,7 @@ module CAN_top #(
     logic dbg_tec_recovery_done;
 
     assign proto_error_req = rx_stf_err | rx_crc_err | rx_error_flag;
-    assign bus_idle = bus_rx && !tx_en;
+    assign bus_idle_count_en = bit_tick && bus_rx;
     assign tx_error = tx_bit != bus_rx;
     assign bus_off = bus_off_tec_rec;
     assign crc_err = rx_crc_err;
@@ -118,6 +119,18 @@ module CAN_top #(
     assign eof_done = tx_complete;
     assign timing_fd = tx_fd_phase ? 1'b1 : rx_fd;
 
+
+    flex_counter_CDL #(
+        .SIZE(4)
+    ) u_bus_idle_counter (
+        .clk(clk),
+        .n_rst(n_rst),
+        .count_enable(bus_idle_count_en),
+        .clear(!bus_rx),
+        .rollover_val(4'd11),
+        .count_out(),
+        .rollover_flag(bus_idle)
+    );
 
     tx_buffer u_tx_buffer (
         .clk(clk),
