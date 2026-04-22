@@ -3,6 +3,9 @@
 
 module tb_CAN_top;
 
+    // Testbench convention used by the top-level scenarios below:
+    // - Node A is the primary receiver / observer
+    // - Node B is the primary transmitter / source
     localparam CLK_PERIOD = 10ns;
     localparam int MAX_BITS = 512;
 
@@ -50,6 +53,7 @@ module tb_CAN_top;
     logic tx_buf_valid_a;
     logic tx_complete_a;
     logic arb_lost_a;
+    logic arb_lost_seen_a;
     logic [10:0] rx_head_id_a;
     logic [3:0] rx_head_dlc_a;
     logic [63:0] rx_head_data_a;
@@ -73,6 +77,7 @@ module tb_CAN_top;
     logic tx_buf_valid_b;
     logic tx_complete_b;
     logic arb_lost_b;
+    logic arb_lost_seen_b;
     logic [10:0] rx_head_id_b;
     logic [3:0] rx_head_dlc_b;
     logic [63:0] rx_head_data_b;
@@ -88,6 +93,8 @@ module tb_CAN_top;
     int frame_len;
     int edge_idx;
 
+    string TEST_NAME;
+
     initial begin
         $dumpfile("waveform.vcd");
         $dumpvars;
@@ -98,6 +105,16 @@ module tb_CAN_top;
         #(CLK_PERIOD/2.0);
         clk = 1'b1;
         #(CLK_PERIOD/2.0);
+    end
+
+    always_ff @(posedge clk, negedge n_rst) begin
+        if (!n_rst) begin
+            arb_lost_seen_a <= 1'b0;
+            arb_lost_seen_b <= 1'b0;
+        end else begin
+            if (arb_lost_a) arb_lost_seen_a <= 1'b1;
+            if (arb_lost_b) arb_lost_seen_b <= 1'b1;
+        end
     end
 
     assign bus_line = tx_bit_a & tx_bit_b & (force_bus_en ? force_bus_bit : 1'b1);
@@ -646,6 +663,7 @@ module tb_CAN_top;
     endtask
 
     initial begin
+        TEST_NAME = "RESET";
         n_rst = 1'b1;
         host_wr_req_a = 1'b0;
         host_rd_req_a = 1'b0;
@@ -658,39 +676,48 @@ module tb_CAN_top;
         force_bus_en = 1'b0;
         force_bus_bit = 1'b1;
 
-        // T1: Basic Frame Transmission
+        // BASIC_TX_NODE_B_TO_NODE_A
+        TEST_NAME = "BASIC_TX_NODE_B_TO_NODE_A";
         do_reset();
         configure_node_a(3'b111);
         configure_node_b(3'b111);
         build_frame_stream(11'h1A3, 4'd4, 64'hDEADBEEF_00000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
-        send_frame_a(11'h1A3, 4'd4, 64'hDEADBEEF_00000000);
-        repeat (220000) @(posedge clk);
+        send_frame_b(11'h1A3, 4'd4, 64'hDEADBEEF_00000000);
+        repeat (1500) @(posedge clk);
         host_read_a(ADDR_IRQ_STATUS, rd_data);
-        clear_irq_a(8'h02);
+        clear_irq_a(8'h01);
+        host_read_b(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_b(8'h02);
 
-        // T2: Basic Frame Reception
+        // BASIC_RX_NODE_A_EXTERNAL_FRAME
+        TEST_NAME = "BASIC_RX_NODE_A_EXTERNAL_FRAME";
         do_reset();
         configure_node_a(3'b111);
         configure_node_b(3'b000);
         build_frame_stream(11'h255, 4'd2, 64'hABCD_000000000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
         drive_external_bits(frame_bits, frame_len);
-        repeat (220000) @(posedge clk);
+        repeat (1500) @(posedge clk);
         host_read_a(ADDR_IRQ_STATUS, rd_data);
         clear_irq_a(8'h01);
 
-        // T3: Arbitration Loss
+        // ARBITRATION_LOSS_THEN_NODE_A_RETRANSMITS
+        TEST_NAME = "ARBITRATION_LOSS_THEN_NODE_A_RETRANSMITS";
         do_reset();
         configure_node_a(3'b111);
         configure_node_b(3'b111);
+        force_bus_en = 1'b1;
+        force_bus_bit = 1'b0;
         load_frame_a(11'h6A5, 4'd1, 64'hAA00_000000000000);
         load_frame_b(11'h123, 4'd1, 64'h5500_000000000000);
         request_tx_both();
-        repeat (320000) @(posedge clk);
+        wait ((dut_a.u_can_tx_path.state == 3'd4) && (dut_b.u_can_tx_path.state == 3'd4));
+        force_bus_bit = 1'b1;
+        wait (tx_complete_b == 1'b1);
+        repeat (40) @(posedge clk);
+        force_bus_en = 1'b0;
 
-        // T4: Retransmission on Arbitration Loss
-        repeat (420000) @(posedge clk);
-
-        // T5: CRC Error Detection
+        // CRC_ERROR_DETECTION_NODE_A_RX
+        TEST_NAME = "CRC_ERROR_DETECTION_NODE_A_RX";
         do_reset();
         configure_node_a(3'b100);
         configure_node_b(3'b000);
@@ -700,7 +727,8 @@ module tb_CAN_top;
         host_read_a(ADDR_IRQ_STATUS, rd_data);
         clear_irq_a(8'h04);
 
-        // T6: Bit Stuff Error Detection
+        // BIT_STUFF_ERROR_DETECTION_NODE_A_RX
+        TEST_NAME = "BIT_STUFF_ERROR_DETECTION_NODE_A_RX";
         do_reset();
         configure_node_a(3'b100);
         configure_node_b(3'b000);
@@ -710,7 +738,8 @@ module tb_CAN_top;
         host_read_a(ADDR_IRQ_STATUS, rd_data);
         clear_irq_a(8'h04);
 
-        // T7: Back-to-back Frame Handling
+        // BACK_TO_BACK_FRAME_HANDLING_NODE_A_RX
+        TEST_NAME = "BACK_TO_BACK_FRAME_HANDLING_NODE_A_RX";
         do_reset();
         configure_node_a(3'b001);
         configure_node_b(3'b000);
@@ -718,31 +747,34 @@ module tb_CAN_top;
         drive_external_bits(frame_bits, frame_len);
         build_frame_stream(11'h222, 4'd2, 64'hC3D4_000000000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
         drive_external_bits(frame_bits, frame_len);
-        repeat (420000) @(posedge clk);
+        repeat (5000) @(posedge clk);
         pop_rx_a();
         repeat (20) @(posedge clk);
         pop_rx_a();
         repeat (4) @(posedge clk);
 
-        // T8: Interrupt Handling
+        // INTERRUPT_HANDLING_A_RX_B_TX
+        TEST_NAME = "INTERRUPT_HANDLING_A_RX_B_TX";
         do_reset();
         configure_node_a(3'b000);
         configure_node_b(3'b000);
         send_frame_b(11'h155, 4'd1, 64'hAA00_000000000000);
-        repeat (120000) @(posedge clk);
+        repeat (5000) @(posedge clk);
         host_read_a(ADDR_IRQ_STATUS, rd_data);
         clear_irq_a(8'h01);
 
-        host_write_a(ADDR_IRQ_ENABLE, 8'h02);
+        host_write_a(ADDR_IRQ_ENABLE, 8'h01);
         send_frame_b(11'h166, 4'd1, 64'hBB00_000000000000);
-        repeat (80000) @(posedge clk);
+        repeat (5000) @(posedge clk);
         host_read_a(ADDR_IRQ_STATUS, rd_data);
         clear_irq_a(8'h01);
+        repeat (6) @(posedge clk);
 
-        send_frame_a(11'h077, 4'd1, 64'hCC00_000000000000);
-        repeat (120000) @(posedge clk);
-        host_read_a(ADDR_IRQ_STATUS, rd_data);
-        clear_irq_a(8'h02);
+        host_write_b(ADDR_IRQ_ENABLE, 8'h02);
+        send_frame_b(11'h077, 4'd1, 64'hCC00_000000000000);
+        repeat (5000) @(posedge clk);
+        host_read_b(ADDR_IRQ_STATUS, rd_data);
+        clear_irq_b(8'h02);
         repeat (6) @(posedge clk);
 
         host_write_a(ADDR_IRQ_ENABLE, 8'h04);
@@ -753,25 +785,31 @@ module tb_CAN_top;
         clear_irq_a(8'h04);
         repeat (6) @(posedge clk);
 
-        // T9: Flexible Data Rate
+        // NORMAL_RATE_THEN_FD_RATE_B_TO_A
+        TEST_NAME = "NORMAL_RATE_THEN_FD_RATE_B_TO_A";
         do_reset();
+        configure_node_a_custom(3'b111, 10'd3, 1'b0);
+        configure_node_b_custom(3'b111, 10'd3, 1'b0);
+        send_frame_b(11'h33A, 4'd4, 64'h01234567_00000000);
+        repeat (5000) @(posedge clk);
         configure_node_a_custom(3'b111, 10'd3, 1'b1);
         configure_node_b_custom(3'b111, 10'd3, 1'b1);
-        send_frame_a(11'h33A, 4'd4, 64'h01234567_00000000);
-        repeat (220000) @(posedge clk);
+        send_frame_b(11'h33B, 4'd4, 64'h89ABCDEF_00000000);
+        repeat (5000) @(posedge clk);
 
-        // T10: Phase Buffer & Compensation Delay Refinement
+        // PHASE_BUFFER_COMPENSATION_REFINEMENT_NODE_A_RX
+        TEST_NAME = "PHASE_BUFFER_COMPENSATION_REFINEMENT_NODE_A_RX";
         do_reset();
         configure_node_a_custom(3'b001, 10'd3, 1'b0);
         configure_node_b_custom(3'b000, 10'd3, 1'b0);
         build_frame_stream(11'h2A5, 4'd4, 64'hA5A55AA5_00000000, 1'b0, 1'b0, 1'b1, frame_bits, frame_len);
         find_transition_pair_index(frame_bits, frame_len, 24, edge_idx);
         if (edge_idx >= 0) begin
-            drive_external_bits_with_phase_bump(frame_bits, frame_len, edge_idx, -1);
+            drive_external_bits_with_phase_bump(frame_bits, frame_len, edge_idx, -2);
         end else begin
             drive_external_bits(frame_bits, frame_len);
         end
-        repeat (220000) @(posedge clk);
+        repeat (5000) @(posedge clk);
 
         $finish;
     end

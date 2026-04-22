@@ -44,6 +44,7 @@ module CAN_top #(
     logic rx_fd;
     logic tx_fd_phase;
     logic timing_fd;
+    logic rx_timing_fd;
 
     logic tx_en;
     logic tx_buf_clr;
@@ -117,8 +118,17 @@ module CAN_top #(
     assign stf_err = rx_stf_err;
     assign data_done = tx_complete;
     assign eof_done = tx_complete;
-    assign timing_fd = tx_fd_phase ? 1'b1 : rx_fd;
+    assign timing_fd = tx_fd_phase ? 1'b1 : rx_timing_fd;
 
+    always_ff @(posedge clk, negedge n_rst) begin
+        if (!n_rst) begin
+            rx_timing_fd <= 1'b0;
+        end else if (!bt_enable || !rx_en) begin
+            rx_timing_fd <= 1'b0;
+        end else if (bit_tick) begin
+            rx_timing_fd <= rx_fd;
+        end
+    end
 
     flex_counter_CDL #(
         .SIZE(4)
